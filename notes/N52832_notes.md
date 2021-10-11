@@ -1,11 +1,11 @@
 # Wiring
 
 | DnD          | nRF      | ST-LINK | Why                                   |
------------------------------------------------------------------------------
+|--------------|----------|---------|---------------------------------------|
 | Trig         | VCC      |         | Provides 1.8V and starts the nRF      |
 | Glitch       | CPU Regu.|         | Sends a glitch voltage to the CPU     |
 | GND(glitcher)| GND      |         | Grounds the nRF                       |
-| In 0         | GND      |         | The DnD checks this to see if nRF on |
+| In 0         | GND      |         | The DnD checks this to see if nRF on  |
 |              | SWDIO    | SWDIO   | Serial wire debug IO to/from ST-LINK  |
 |              | SWCLK    | SWCLK   | Serial wire clock                     |
 
