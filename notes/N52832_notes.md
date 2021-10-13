@@ -1,3 +1,9 @@
+# Resources
+
+- [nRF52832 Datasheet](https://infocenter.nordicsemi.com/pdf/nRF52832_PS_v1.4.pdf)
+- [Pico Debug'n'Dump Info](https://pdnd.stacksmashing.net/)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/d?lang=en)
+
 # Wiring
 
 | DnD          | nRF      | ST-LINK | Why                                   |
@@ -16,7 +22,7 @@ To make sure the nRF chip and breakout board work, I assumed that code readout p
 openocd -f interface/stlink.cfg -f testnrf.cfg -c "init;dump_image nrf52_dumped2.bin 0x0 0x1000; exit"
 ```
 
-I've successfully loaded the dumped binary into Ghidra as little endian thumb ARM Cortex instruction set.
+I've successfully loaded the dumped binary into Ghidra as **little endian thumb ARM Cortex** (M4) instruction set.
 
 Next step is to find where I can connect a wire to the CPU power decoupler to provide the glitch voltage as outlined in stacksmashing's video.
 This is so I only target the operation of the CPU, rather than the bluetooth core for example.
@@ -30,6 +36,7 @@ The QFN48 has four pins for supply decoupling:
 I'm assuming that I can glitch the CPU voltage using DEC1.
 This also checks out with stacksmashing's video where he shows the CPU regulator as 0.9V.
 There are several capacitors on the XL52832-D01 board, one of which appears to come directly out of DEC1 and this should provide a safe enough pad to solder a wire to.
+I'm working under the assumption that this capacitor is for CPU voltage regulation.
 
 # Using GDB on the nRF firmware
 
@@ -49,4 +56,22 @@ Jump and break at addresses by using `*` before the address.
 
 # CTRL-AP (Control Access Port)
 
-Fill this in as you learn more.
+Custom access port that enables control of the device even if the other access ports in the Debug Access Port (DAP, which uses the SWDIO and SWDCLK lines) are being disabled by the access port protection.
+
+It allows you to soft reset and disable access port protection.
+Note that disabling access port protection through the CTRL-AP is done by issuing an ERASEALL command, **erasing the flash, UICR and RAM**.
+
+# User Information Configuration Registers (UICR)
+
+"The user information configuration registers (UICRs) are non-volatile memory (NVM) registers for configuring user specific settings."
+
+## Writing
+
+Write the same way as flash.
+Configuration only effective after reset.
+Can be written to **181 times before needing to use ERASEUICR or ERASEALL**.
+
+# Enabling access port protection
+
+The **UICR register *APPROTECT* is used to enable access port protection**.
+Any value other than 0xFF will enable the protection.
