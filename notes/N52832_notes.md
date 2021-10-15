@@ -73,5 +73,16 @@ Can be written to **181 times before needing to use ERASEUICR or ERASEALL**.
 
 # Enabling access port protection
 
-The **UICR register *APPROTECT* is used to enable access port protection**.
+The **UICR (base addr. 0x10001000) register *APPROTECT* (addr. offset 0x208) is used to enable access port protection**.
 Any value other than 0xFF will enable the protection.
+
+# Bootloader location
+
+| Usage                               | Memory range nRF52832 (S132 v6.0.x) |
+| ----------------------------------- | ----------------------------------- |
+| Bootloader settings                 | 0x0007 F000 - 0x0008 0000 (4 kB)    |
+| MBR parameter storage               | 0x0007 E000 - 0x0007 F000 (4 kB)    |
+| Bootloader                          | 0x0007 8000 - 0x0007 E000 (24 kB)   |
+| Application area (incl. free space) | 0x0002 0000 - 0x0007 8000 (352 kB)  |
+| SoftDevice                          | 0x0000 1000 - 0x0002 6000 (148 kB)  |
+| Master Boot Record (MBR)            | 0x0000 0000 - 0x0000 1000 (4 kB)    |
