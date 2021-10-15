@@ -1,7 +1,6 @@
 ---
 title: Project Proposal
 author: Jonathan Rudman
-date: 2021-10-15
 geometry: margin=1in
 ---
 
@@ -16,6 +15,8 @@ This can be used to gain access to a debug interface and enable reading the firm
 
 I will be attempting to employ implementation attacks such as voltage glitching to dump the protected firmware of microcontrollers.
 This may be informed by binary analysis of an available bootloader source and software vulnerabilities to dump protected internal memory.
+
+# Related Work
 
 <!-- TODO: Write about what other people have (and haven't) done -->
 
@@ -68,7 +69,7 @@ Should have successfully glitched the chosen MCU from the last deadline and made
 Should have investigated ways to automate---or adjust current automation methods for---voltage glitching effectively with MCUs which haven't yet been successfully glitched.
 Should have used findings to propose mitigations for voltage glitching and any other techniques used throughout the project.
 
-## 11th Apr 2022 (Final submission)
+### 11th Apr 2022 (Final submission)
 
 Should have created the report for final submission.
 
