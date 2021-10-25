@@ -107,4 +107,4 @@ The above waits as long as the input pin for monitoring the nRF VDD is low.
 It starts the glitch when the input pin is high.
 
 I've found that this happens on the very first glitch and then it takes a while to fill up the pico's serial input buffer.
-The power supply needed to be on for the level shifters to work normally.
+The power supply for the in/out pins must be off.
