@@ -11,7 +11,7 @@
 | Trig         | VCC      |         | Provides 1.8V and starts the nRF      |
 | Glitch       | CPU Regu.|         | Sends a glitch voltage to the CPU     |
 | GND(glitcher)| GND      |         | Grounds the nRF                       |
-| In 0         | GND      |         | The DnD checks this to see if nRF on  |
+| In 0         | VCC      |         | The DnD checks this to see if nRF on  |
 |              | SWDIO    | SWDIO   | Serial wire debug IO to/from ST-LINK  |
 |              | SWCLK    | SWCLK   | Serial wire clock                     |
 
@@ -73,8 +73,12 @@ Can be written to **181 times before needing to use ERASEUICR or ERASEALL**.
 
 # Enabling access port protection
 
+To write to UICR, I need to write CONFIG.WEN.
+
 The **UICR (base addr. 0x10001000) register *APPROTECT* (addr. offset 0x208) is used to enable access port protection**.
 Any value other than 0xFF will enable the protection.
+
+Done using `halt` and `flash fillw 0x10001208 0xFFFFFF00 0x01` over telnet.
 
 # Bootloader location
 
@@ -86,3 +90,21 @@ Any value other than 0xFF will enable the protection.
 | Application area (incl. free space) | 0x0002 0000 - 0x0007 8000 (352 kB)  |
 | SoftDevice                          | 0x0000 1000 - 0x0002 6000 (148 kB)  |
 | Master Boot Record (MBR)            | 0x0000 0000 - 0x0000 1000 (4 kB)    |
+
+# Running the glitch
+
+I've enabled APPROTECT and now OpenOCD still dumps the firmware but it's an empty binary, so the check I now run to see if APPROTECT is on is if there are 0 breakpoints declared when running OpenOCD.
+After a number of glitches using pyserial to send the commands to the pico, there is a serial write timeout on setting the delay.
+This is the first step in glitching and when I disable the glitch command and just set delay and pulse, there is no problem.
+
+I believe that in the `CMD_GLITCH` case, the following is looping forever:
+
+```c
+while(!gpio_get(1 + IN_NRF_VDD));
+```
+
+The above waits as long as the input pin for monitoring the nRF VDD is low.
+It starts the glitch when the input pin is high.
+
+I've found that this happens on the very first glitch and then it takes a while to fill up the pico's serial input buffer.
+The power supply needed to be on for the level shifters to work normally.
