@@ -11,12 +11,12 @@
 | Trig         | VCC      |         | Provides 1.8V and starts the nRF      |
 | Glitch       | CPU Regu.|         | Sends a glitch voltage to the CPU     |
 | GND(glitcher)| GND      |         | Grounds the nRF                       |
-| In 0         | VCC      |         | The DnD checks this to see if nRF on  |
+| In 0         | DEC4     |         | The DnD checks this to see if nRF on  |
 |              | SWDIO    | SWDIO   | Serial wire debug IO to/from ST-LINK  |
 |              | SWCLK    | SWCLK   | Serial wire clock                     |
 
 
-To make sure the nRF chip and breakout board work, I assumed that code readout protection (CRP) was off, and connected it up to the ST-LINK. Using the constant 1.8V power supply from the DnD to the nRF and only the SWDIO and SWCLK pins on the nRF to the ST-LINK (the ST-LINK was supplied 3.3V), I've managed to power up the nRF chip and access it using `openocd`:
+To make sure the nRF chip and breakout board work, I assumed that code readout protection (CRP) was off, and connected it up to the ST-LINK. Using the constant 3.3V power supply from the DnD to the nRF and only the SWDIO and SWCLK pins on the nRF to the ST-LINK (the ST-LINK was supplied 3.3V), I've managed to power up the nRF chip and access it using `openocd`:
 
 ```
 openocd -f interface/stlink.cfg -f testnrf.cfg -c "init;dump_image nrf52_dumped2.bin 0x0 0x1000; exit"
@@ -108,3 +108,41 @@ It starts the glitch when the input pin is high.
 
 I've found that this happens on the very first glitch and then it takes a while to fill up the pico's serial input buffer.
 The power supply for the in/out pins must be off.
+
+The **CPU clock speed is 64MHz**, which means likely 64000000 instructions every second.
+I think the delay needs to start at 1.5ms.
+An instruction takes $1.5625*10^{-8}$ seconds.
+
+## Challenges
+
+See above for the first major challenge.
+The second is that, using the default parameters of 63000-84000 for delay and 7-8 for the pulse width, I haven't had any success or even differences in the openocd init messages.
+
+I attached a wire to DEC4 and removed the capacitor after the wire on DEC1 to ensure that the glitch goes through fully but still haven't had any luck.
+I'm trying 43000-63000 this time.
+
+Now with the oscilloscope, I can see that my delay is far too big: pulses only seem to be occurring in every other power cycle.
+
+## Observations
+
+Pulses from the Glitch pin are around 450mV.
+A pulse of 9 is about 0.8 microseconds.
+A pulse of 30 is about 2 microseconds.
+A delay of 0 can be about 20 ms into power on too.
+A delay of 1000 is about 18-19 ms into power on.
+A delay of 5000 is about 20 ms into power on.
+A delay of 50000 is about 21.5 ms into power on.
+A delay of 100000 is about 24.6 ms into power on.
+150000 is about 29 ms.
+200000 is about 33 ms.
+
+The fuzzy activity before VCC is pulled low again is init OpenOCD.
+These delays are too late for targeting the NVMC activity because the while loop for checking system power is taking too long.
+
+The Glitch pin seems to have pretty much no effect on the CPU power.
+I've observed that even when GPIO19 is pulled high, the mosfet doesn't allow flow from drain to source.
+GPIO19 is 2.6V, not 3.3V, only due to its connection to the mosfet and resistors.
+I know this because I tried using GPIO17 instead and it exhibited the same behaviour.
+GlitchEn is connected directly to GPIO19 and comes before the current-limiting 100ohm resistor before the mosfet gate.
+There is also a 100ohm resistor between the gate and ground.
+The voltage on the gate never reads higher than 1.3V.
