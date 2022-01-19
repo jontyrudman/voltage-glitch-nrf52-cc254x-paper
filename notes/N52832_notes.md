@@ -146,3 +146,39 @@ I know this because I tried using GPIO17 instead and it exhibited the same behav
 GlitchEn is connected directly to GPIO19 and comes before the current-limiting 100ohm resistor before the mosfet gate.
 There is also a 100ohm resistor between the gate and ground.
 The voltage on the gate never reads higher than 1.3V.
+
+# Glitching Using GIAnT
+
+I tried to use GIAnT, initially, to insert a glitch in the same manner as in previous examples for GIAnT: by connecting the DAC output to VCC on the nRF and lowering that to a fault voltage after an offset.
+This is different to how the Debug'n'Dump was designed to work, where a constant voltage is applied on the VCC of the nRF chip and the glitch is done by a separate pin which momentarily shorts to ground.
+This had no noticeable effect, presumably because the nRF's internal voltage regulators were smoothing out the voltage into the CPU, allowing it to continue functioning fairly normally.
+I needed to target the CPU power regulator specifically and go back to the fault model used with the Pico Debug'n'Dump.
+
+At that point, the GIAnT didn't have any means of shorting an input line to ground; it didn't have the MOSFET configuration the DnD has.
+Luckily, the board was build with that kind of ability in mind for the future, with solder pads available for a resistor and MOSFET going to a pin on the board.
+Adding the functionality involved updating the HDL to pull the trace going to the MOSFET gate high at the trigger point, and soldering a resistor and MOSFET to that trace.
+David added HDL to do the inverse on an adjacent transistor, too.
+
+The T1 output of GIAnT was then connected to the CPU power decoupler DEC1, where it could perform the same function as the Glitch pin on the Pico Debug 'n' Dump.
+The trigger was set to be the DAC out being high (when the nRF is started) and then after the defined offset, the CPU power would be shorted to GND through T1.
+To make sure the DAC power wouldn't be lowered at the glitch, the fault voltage was set to the same value as the standard voltage.
+
+Shortly after starting the python script again with this configuration, I'd obtained debugging access and OpenOCD displayed "6 breakpoints".
+Success!
+
+## Retrospective Comments
+
+For the most part, don't bother trying to calculate offset timings using expected cycles.
+It's much easier to just use the oscilloscope, change the offset value and observe.
+I did find targeting the critical section using GIAnT though, and it's worth checking in future whether the offset timings are even linear...
+It's very hard to target a section based on its time after start up.
+
+# Retry of Pico DnD
+
+Write about the exchange on the GitHub issue.
+
+I removed the culprit resistor and now it's properly shorting the CPU regulator.
+
+- Using the system power into IN_0 on the DnD in order to satisfy breaking out of the while loop still seems to add a crazy long delay (measure this, but about 20ms); just remove the while loop altogether.
+
+Talk about how the NVMC activity seems to jump around the fault. Why?
