@@ -217,5 +217,27 @@ In binary: 111111101111111111111111111111111111111111111111111111111111111111111
 Logical:  01111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111
 ```
 
-There are a few ways I could approach the voltage glitch:
+# What I need to work out
+
+There are a few questions I need to answer in order to be more targeted in my approach:
+
+- Whether changing VCC is a possible glitch or whether it needs to be directly on DCOUPL.
+- Whether there's a memory copy of the debug lock bit before code execution, which can be glitched.
+- Whether there's a some kind of software check of the debug lock bit in the embedded bootloader, which can be glitched to skip when making specific requests to the chip.
+
+To analyse what the MCU does, I'll be following a few experiments from [here](https://github.com/debug-silicon/C8051F34x_Glitch).
+
+I was struggling to use the BLE stack examples without IAR Workbench using SDCC.
+Standard I/O examples work with the library found [here](https://github.com/Grapsus/cc254x_sdcc), however.
+
+## Planned approach to find glitch
+
+Connect glitch wire to DCOUPL first; can always experiment with VCC later (different shapes to see if there's an effect), but due to the voltage regulator, glitching directly on DCOUPL is likely to be the straightforward way to glitch.
+I'll try to apply a "crowbar" technique on the decoupling circuit, similar to the nRF chip, to glitch.
+
+1. Long-glitch to see if the chip resets.
+2. Glitch a "normal" program to see if it can be done without resetting.
+3. Basic DPA between unlocked and locked after reset and communication.
+4. Try different signals on VCC to see if it can be done without shorting DCOUPL. Do this only if successful on DCOUPL.
+
 
