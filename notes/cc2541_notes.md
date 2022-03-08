@@ -548,3 +548,29 @@ b'  Programmer: CC Debugger\n  Target: CC2540\n  Target does not reading Info Pa
 I can get it to say the debug status is 23h (useless to me), but that doesn't mean it actually is, so even if I got it to say 22h, when `cc-tool` tries to move forward it will fail because the lock is still on.
 
 I get much more frequent debug status glitches with the longer pulse widths, with a wider range of debug statuses returned (TODO: Expand, need stats).
+
+David has also given me some info about another avenue to try (TODO):
+"If you trigger a flash erase and overwrite to disable CRP but do not reset/power cycle afterwards, it will keep RAM contents".
+
+# Differential Power Analysis
+
+I've managed to, with some tweaks, use x's code for reading values from the DS1074Z scope to perform DPA on the section with the reset followed by command execution from cc-tool.
+I also want to perform DPA on a cold boot to look for differences.
+This is difficult because I need to be able to turn the chip on and off, so it needs to be connected to giant DAC (USB power toggle is notoriously messy and I don't have the tools right now).
+While the DAC is on, the CC Debugger connects to the chip fine, but the CC Debugger is giving power to the CPU over the reset wire, which would mess up results.
+Without the reset wire being connected to the CC Debugger, the CC Debugger won't recognise anything.
+
+Or I could wire up a custom USB cable with VCC and GND breakouts and be done with it?
+Nope, just looked at the CC Debugger instructions and I can connect VCC from the target (and giant) to the target voltage sense pin, and turn off the power from the adapter board (to stop it sending power over RST)!
+Now, when the giant DAC is on, CC Debugger detects the target and cc-tool works normally, and when it's off it doesn't detect the target.
+This works as long as the CC Debugger is manually reset with its button when the CC2541 is receiving power, and the CC Debugger is not then later manually reset while the CC2541 is off.
+
+TODO: Add picture of wiring setup.
+TODO: Add picture of cold boot.
+TODO: Add pictures of DPA graphs.
+
+# Glitching a cold boot
+
+I'm using cold boot to describe starting with the chip completely off (VCC = 0V), rather than resetting while the chip is receiving power.
+I hoped that it would be similar to the nRF52832, where I could glitch a memory copy of the lock status.
+After DPA and brute forcing the whole search space of the first x ms of cold boot with the "crowbar" on CPU power with no unique output, I don't think it's possible to do here.
