@@ -569,8 +569,19 @@ TODO: Add picture of wiring setup.
 TODO: Add picture of cold boot.
 TODO: Add pictures of DPA graphs.
 
+I've been told by David to improve DPA with two things (TODO):
+
+- Align all the traces before averaging based on common features (spike when reset pulled high) to make sure nothing is cancelled out and cycles are aligned.
+- Record many more traces (think 1000s and 10000s).
+
+Most of my power traces were using giant to supply power to the CC, which was unnecessary as I wasn't glitching, so there's a lot of noise for no reason...
+
 # Glitching a cold boot
 
 I'm using cold boot to describe starting with the chip completely off (VCC = 0V), rather than resetting while the chip is receiving power.
 I hoped that it would be similar to the nRF52832, where I could glitch a memory copy of the lock status.
 After DPA and brute forcing the whole search space of the first x ms of cold boot with the "crowbar" on CPU power with no unique output, I don't think it's possible to do here.
+
+# 15 March Update
+
+This morning I learned a few things... (TODO: Add info I send David, and paper he sent me).
