@@ -584,4 +584,17 @@ After DPA and brute forcing the whole search space of the first x ms of cold boo
 
 # 15 March Update
 
-This morning I learned a few things... (TODO: Add info I send David, and paper he sent me).
+This morning I learned a few things...
+
+- CC was getting power from the giant for all my traces so far, adding unnecessary noise.
+- I still hadn’t tried removing the decoupling capacitor, which made a huge difference to the trace on the scope
+- I was slightly too forceful when removing the capacitor, thought everything was fine and then realised the wire I’d connected had pulled off the pad. I managed to attach it to the DCOUPL leg though
+
+David also sent me [this paper](https://eprint.iacr.org/2022/328.pdf), outlining a glitching campaign on ARM Cortex-based CC SoCs.
+
+I don't believe there's a bootloader hidden on the CC2541, for the following reasons:
+
+- It's not mentioned in the User Guide or the Data Sheet.
+- Without an application flashed, there is no CPU activity (TODO: Capture this).
+- No time difference between CRP enabled and disabled (TODO: Capture this).
+- The CC Debugger is required for flashing the chip, unless your own serial or BLE OTA bootloader is present in the flash.
