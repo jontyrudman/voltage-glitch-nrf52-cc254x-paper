@@ -3,9 +3,13 @@ import re
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib as mpl
+
+mpl.rcParams['agg.path.chunksize'] = 10000
 
 # directories = ["traces_220303_210951", "traces_220303_212329"]
-directories = ["traces_220503_115041"]
+# directories = ["traces_221103_145951", "traces_221103_183227", "traces_221103_214605"]
+directories = ["traces_221303_071853"]
 combined_file_list = [os.path.join(d, p) for d in directories for p in os.listdir(d)]
 
 crpenabled_paths = [

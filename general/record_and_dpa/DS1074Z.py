@@ -7,6 +7,7 @@ Adapted and updated for newer pyvisa from Rocking Wombat's work (http://www.rock
 """
 
 import sys
+import time
 import numpy
 import pyvisa as visa
 
@@ -286,10 +287,9 @@ class DS1074Z(object):
     def get_data(self, channel):
         '''Holt Daten von Oszilloskop ab und gibt sie in einem Dictonary
         als Float-Array zusammen mit der Samplerate zurück.'''
-        self.scope.write(":WAV:FORM ASC")
-        self.scope.write(":WAV:FORM BYTES")
-        self.scope.write(":WAV:SOUR CHAN1")
+        self.scope.write(f":WAV:SOUR {channel}")
         self.scope.write(":WAV:MODE RAW")
+        self.scope.write(":WAV:FORM ASC")
         self.scope.write(":WAV:STAR 1")
         self.scope.write(":WAV:STOP 6000")
         self.scope.write(":WAV:DATA?")
@@ -305,6 +305,36 @@ class DS1074Z(object):
             data[x]=float(data[x])
         
         return {'Samplerate': self.get_samplerate(), 'Data': data}
+
+    def get_data_bytes(self, channel, num_pts):
+        self.scope.write(f":WAV:SOUR {channel}")
+        self.scope.write(":WAV:MODE RAW")
+        self.scope.write(":WAV:FORM BYTE")
+        start_time = time.time()
+        start_pt = 1
+        end_pt = 250000
+        raw_bytes = bytearray(b"")
+        while True:
+            if start_pt > num_pts:
+                break
+            if end_pt > num_pts:
+                end_pt = num_pts
+            print(f"Getting {start_pt} to {end_pt}...")
+            self.scope.write(f":WAV:STAR {start_pt}")
+            self.scope.write(f":WAV:STOP {end_pt}")
+            self.scope.write(":WAV:DATA?")
+            raw_bytes += bytearray(self.scope.read_bytes(1)[11:-1])
+            start_pt = end_pt + 1
+            end_pt += 250000
+        end_time = time.time()
+        print(f"Took {end_time - start_time} seconds.")
+
+        int_data = []
+
+        for i in range(len(raw_bytes)):
+            int_data.append(raw_bytes[i]) 
+        
+        return {'Samplerate': self.get_samplerate(), 'Data': int_data}
         
     def movingaverage(values,window):
         '''Bildet gleitenden Mittelwert'''
