@@ -53,7 +53,7 @@ Embedded systems based around microcontrollers are in everything now, from watch
 Microcontroller firmware is often protected from being read by the consumer with code readout protection (CRP), usually in the form of disabling debugging access to the microcontroller.
 This means that independent security researchers can't easily assess the firmware for security vulnerabilities and consumers of many IoT devices are left with e-waste they can't repurpose when the manufacturer goes bankrupt and can no longer provide them with the service they paid for.
 
-There are many ways that this situation can be avoided, but I've looked into fault injection methods to bypass the CRP and dump the firmware.
+There are many ways that this can be remedied, but I've looked into fault injection methods to bypass the CRP and dump the firmware.
 Specifically, using voltage injection.
 Why?
 Because:
@@ -67,7 +67,7 @@ Because:
 Now, I don't have a full solution to that problem, but I see voltage glitching as a possible short term solution.
 I wanted to add to the knowledge of which chips are vulnerable to these attacks, and judge how it might be made easier and more reliable to carry them out. <!-- answer this! -->
 
-I wanted to see if the same "crowbar" technique applied to the nRF52 series in Thomas Roth's (AKA stacksmashing) video and LimitedResults' blog post could be easily replicated and applied to another family of microcontrollers, the CC253x/4x series from Texas Instruments.
+I also wanted to see if the same "crowbar" technique applied to the nRF52 series in Thomas Roth's (AKA stacksmashing) video and LimitedResults' blog post could be easily replicated and applied to another family of microcontrollers, the CC253x/4x series from Texas Instruments.
 The "crowbar" technique involves momentarily shorting the CPU voltage to ground in order to miscalculate or skip an instruction.
 
 Previously, my success criteria were very focussed on successfully glitching and then dumping the firmware of the nRF52832 and, later, the CC2541.
@@ -79,9 +79,9 @@ Since then, they have changed to be more oriented around learning about the proc
 
 ### First attempt with the Debug'n'Dump
 
-The Debug'n'Dump is a product created by Thomas Roth to make voltage glitching using the "crowbar" method straightforward.
+The Debug'n'Dump is a product created by Thomas Roth (stacksmashing) to make voltage glitching using the "crowbar" method straightforward.
 
-After flashing the glitching firmware to the Debug'n'Dump, running it didn't seem to have any effect on the nRF52832, but at this point I was blind to what was happening without an oscilloscope.
+After flashing the glitching firmware to the Debug'n'Dump and wiring everything up, running it didn't seem to have any effect on the nRF52832, but at that point I was also blind to what was happening without an oscilloscope.
 I acquired an oscilloscope from David Oswald, and observed that there was just a tiny pulse where the glitch should happen; it wasn't shorting.
 After creating an issue on the airtag-glitcher GitHub repo documenting my findings, I moved on to using David's own FPGA-based glitching board, the GIAnT, to replicate the attack.
 
@@ -107,28 +107,28 @@ The terminal window you'll see on the right is from my laptop, where I've SSH'd 
 The application that I've started on the Pi configures the GIAnT's glitching parameters.
 The glitch offset is configured to glitch the CPU of the nRF chip at around the same offset as what is assumed to be flash memory activity, which includes when the readout protection data is copied.
 
-You can see on the oscilloscope that the GIAnT keeps shorting the CPU of the nRF chip to ground momentarily, at an increasing offset, approaching the critical section, after the chip has started.
+You can see on the oscilloscope that the GIAnT keeps shorting the CPU of the nRF chip to ground momentarily, at an increasing offset approaching the critical section after the chip has started.
 It repeats each glitch a few times, and with multiple pulse widths, to increase the likelihood of a successful glitch.
 
 Once this memory copy is successfully glitched, the application on the Pi stops running, and a dump of the nRF52832's firmware is left in the working directory.
 
 ### Returning to the Debug'n'Dump
 
-In the meantime, Thomas Roth had responded to my issue on GitHub, blaming a resistor of the incorrect spec, which apparently served a minor purpose and could be removed.
+By the time I'd glitched the nRF chip using the GIAnT, Thomas Roth had responded to my issue on GitHub, blaming a resistor of the incorrect spec, which apparently served a minor purpose and could be removed.
 After removing it, I quickly got the glitch to work successfully.
 
 ## Glitching the CC2541
 
-I haven't managed to, but I've learned a lot along the way and this section covers my methods.
-In many respects, I've followed in the footsteps of methods outlined in "Fill your Boots" and "SiLabs C8051F34x code protection bypass", with "On the susceptibility of Texas Instruments SimpleLink platform microcontrollers to non-invasive physical attacks" more recently affirming these methods. (that was arm-based, which most of the newer CC chips are, whereas this was 8051).
-<!-- Just say methods outlined in the papers on the slide (and outline the general methods on the slide). -->
+I haven't managed to glitch the Texas Instruments CC2541, but I've learned a lot along the way and this section covers my methods.
+In many respects, I've followed many of the key methods outlined in the work linked on this slide.
+Specifically, bootloader analysis---there is no default bootloader in the flash as far as I can tell---using simple power analysis to look for critical sections---areas to glitch---and differential power analysis to look deeper into potential critical sections for more differences between CRP enabled and CRP disabled CPU activity.
 
 ### Observations
 
 After connecting everything, the first thing I did was use the oscilloscope to monitor the behaviour of the CC Debugger and the CC2541 during various tasks, such as setting the debug lock bit and reading the info page from the CC2541.
 Looking at the CPU voltage trace, I then identified potential critical sections to glitch.
 
-Those critical sections were:
+Those sections were:
 
 - Immediately after a "cold boot" and just before the application starts visibly executing,
 - While the chip is under reset (the CPU doesn't really do anything here as far as I can tell, though),
@@ -136,42 +136,41 @@ Those critical sections were:
 
 ### Glitch attempts
 
-I've noticed in the cases of after reset and on a cold boot, that there is no section of different CPU activity before the application starts running.
+I've noticed in the cases of after reset and on a cold boot, that there is no obvious section of different CPU activity before the application starts running.
 I assume this is because there's no boot loader, which means there's no logic run by the CPU for checking the readout protection state that I can actually glitch.
 
 This was confirmed by my systematic glitching at increased offsets in those areas and observing the outcomes.
-I knew that the glitch I was applying should cause some different behaviour, because it would cause instructions to be skipped in the test application I was running.
-Glitching the critical sections saw no change in the outcome.
-Drifting too far towards reads and writes over USB did cause a change, but it was always just a crash due to the data returned to the CC Debugger being zeroed.
+I knew that the glitch I was applying should cause some different behaviour from the CPU, because it would cause instructions to be skipped in the test application I was running.
+Glitching the potential critical sections saw no change in the outcome.
+<!-- Drifting too far towards the USB reads and writes did cause a change, but it was always just a crash due to the data returned to the CC Debugger being zeroed. -->
 
-### DPA
+<!-- ### DPA -->
 
-To make sure there wasn't anything I'd missed, I carried out differential power analysis on those critical sections.
-This was in order to highlight any differences between CPU activity with and without CRP enabled, to see if there were any areas I could glitch.
-I've had issues collecting enough traces for this, as it takes a very long to transfer data from the oscilloscope I have to the Pi or my laptop; I can only capture about one trace every 18 minutes, and I need hundreds or ideally thousands, before I can see any results.
-Comparing by eye so far, however, I've seen no significant differences in CPU voltage traces between CRP enabled and disabled.
+<!-- To make sure there wasn't anything I'd missed, I carried out differential power analysis on those critical sections. -->
+<!-- This was in order to highlight any differences between CPU activity with and without CRP enabled, to see if there were any areas I could glitch. -->
+<!-- I've had issues collecting enough traces for this, as it takes a very long to transfer data from the oscilloscope I have to the Pi or my laptop; I can only capture about one trace every 18 minutes, and I need hundreds or ideally thousands, before I can see any results. -->
+<!-- Comparing by eye so far, however, I've seen no significant differences in CPU voltage traces between CRP enabled and disabled. -->
 
-Here you can see that after averaging the blue and orange traces, features disappear, because I haven't managed to line up the clock cycles of each of the traces yet.
+<!-- Here you can see that after averaging the blue and orange traces, features disappear, because I haven't managed to line up the clock cycles of each of the traces yet. -->
 
 ## Conclusions
 
-I'm not sure whether lack of CC2541 crowbar was due to time constraints or impossibility for this method, but I'm leaning towards the latter.
+I'm not sure whether lack of CC2541 crowbar was due to time constraints or that a this method is impossible, but I'm leaning towards the latter.
 I believe the crowbar glitch is not possible because there does not seem to be a firmware bootloader in protected memory that can be affected by glitching the CPU.
 
-Voltage glitching is made more accessible with the Pico Debug ‘n’ Dump.
+During this project, I've found that voltage glitching has been made more accessible with the Pico Debug ‘n’ Dump, due to the cost and ease of use.
 If the resistor was the correct spec, I’d have managed to glitch the nRF52832 with far less troubleshooting, probably within a few days, or even under an hour, with a basic setup guide and more comprehensive pin descriptions.
-The GIAnT is a much more complex and versatile device, which gives it a lot of value when it comes to discovering which type of glitch will work best for a microcontroller.
+The GIAnT, on the other hand, is a much more complex and versatile device, which gives it a lot of value when it comes to discovering which type of glitch will work best for a microcontroller, but not ease of use.
 
 ## What I'd have done differently
 
 For some things, it's hard to say, because I've learned a lot for the first time in this project.
-Generally speaking, and knowing what I know now, it would have been better to identify whether there was any bootloader code I could have targeted before blindly glitching critical sections (although this glitching didn't take long).
-I would also have attempted DPA earlier on, but I did not know what the bottlenecks were, so it could have really slowed down the project if I had.
+Knowing what I know now, it would have been better to identify whether there was any bootloader code I could have targeted before blindly glitching potential critical sections (although this glitching didn't take long).
+I would also have attempted DPA earlier on, but I did not know what the knowledge barriers for communicating with the oscilloscope would be, so it could have really slowed down the project if I had.
 
-I'd have set my success criteria from the start to be more focussed on learning, rather than trying to successfully glitch a chip I had very little information about at the time.
+I'd also have set my success criteria from the start to be more focussed on learning, rather than trying to successfully glitch a chip I had very little information about at the time.
 
 If I had more time, I would have worked on compiling a more conclusive differential power analysis.
 I also would have tried glitching the main voltage for the CC2541 to see if I could set bits.
 David also brought to my attention an old vulnerability with the CC2430, to see whether it still applied to the CC2541, which I would have also liked to investigate.
-I'd have also liked to work on improving ease of use of voltage glitching, primarily by extending GIAnT and adding to the documentation, but also looking at ways it could be made more accessible.
-Collecting success rates.
+I'd have also liked to work on improving ease of use of voltage glitching, primarily by extending GIAnT and adding to the documentation.
