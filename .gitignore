@@ -1,3 +1,7 @@
 *.pdf
 FYP\ Discussion.md
 **/cc2541_traces
+**/traces_*
+*.pkl
+__pycache__
+general/record_and_dpa/cc-tool.log
