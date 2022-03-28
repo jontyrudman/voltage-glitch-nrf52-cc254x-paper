@@ -12,7 +12,7 @@
 - CC2541
   - Modifications
   - Glitch campaign plan
-  - Glitch attempts
+  - Glitch attempts (include application glitching results)
   - Power analysis
   - Other ideas (RAM vulnerability, etc.)
 - Conclusion (main observations and outcomes, ease of use)
