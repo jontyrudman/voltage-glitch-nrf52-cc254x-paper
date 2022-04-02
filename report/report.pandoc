@@ -18,6 +18,8 @@ bibliography: references.bib
 # Introduction
 
 <!-- Put in mention of code readout protection, implementation attacks and background -->
+<!-- The following is ripped from the demonstration speaker notes and needs turning into acceptable language -->
+
 The "crowbar" technique involves momentarily shorting the CPU voltage to ground in order to miscalculate or skip an instruction.
 
 Embedded systems based around microcontrollers are in everything now, from watches to washing machines.
@@ -37,7 +39,7 @@ Because:
 
 @rothHowAppleAirTags2021 has shown how the nRF52832, used in Apple AirTags, can be glitched to skip its CRP check.
 Roth also cites earlier work from a blog, @limitedresultsNRF52DebugResurrection2020, which focuses on a similar system-on-a-chip (SoC), the nRF52840, and presents information from the nRF52 family in the context of voltage glitching and CRP.
-Replicating Roth's and LimitedResults' work was the first experiment of this project and used as a framework for learning about many aspects of voltage glitching for the first time before moving onto a novel experiment: applying a similar glitch to the Texas Instruments CC2541.
+Replicating Roth's and LimitedResults' work is the first experiment of this project and was used as a framework for learning about many aspects of voltage glitching for the first time before moving onto a novel experiment: applying a similar glitch to the Texas Instruments CC2541.
 
 @vandenherrewegenFillYourBoots2020 describe voltage glitching in conjunction with binary analysis---a grey-box approach---on embedded bootloaders.
 Although the nRF52832---the target of this report's first voltage glitch experiment---has a CRP check before the bootloader (which is stored on flash memory), Van Den Herrewegen et al. outline voltage glitches on three different MCUs.
@@ -66,9 +68,14 @@ In contrast, the bullet points above are more learning-oriented, focussing on in
 
 # Replicating a crowbar attack on the nRF52832
 
-Background to the chip and some key details, chip family, why vulnerabilities on nRF52832 likely apply to all nRF52.
-Why replicating.
-Talk about how the trace looks similar to what LimitedResults shows, pure hardware process?
+The nRF52832 is a member of the nRF52 series from Nordic Semiconductors, a series based around the Arm Cortex-M4 processor and a 2.4GHz transceiver.
+This section outlines a successful attempt at replicating the crowbar voltage glitch attack on the nRF52832---initially demonstrated by @rothHowAppleAirTags2021---to fault its CRP check and allow debugging access in the serial bootloader.
+Roth showed how the nRF52832 could be glitched in situ on the AirTag PCB and built on the efforts of @limitedresultsNRF52DebugResurrection2020 who used the nRF52840, but the following experiment aims to glitch the nRF52832 on a development board.
+It is likely that, due to the similarities in features, processors and memory layouts, a voltage glitch which allows CRP bypass on one member of the nRF52 series is also applicable, with little to no adjustments, to any other member of the nRF52 series of microcontrollers.
+These similarities are why LimitedResults' method can also be applied to the nRF52832.
+
+Without a background in electronics and fault injection, the reproduction of Roth's and LimitedResults' experiments proved to be a learning experience.
+This process would go on to provide knowledge and practise in preparation for investigating whether similar attacks would be possible on the CC2541.
 
 ## Modifications
 
@@ -110,6 +117,8 @@ Once this memory copy is successfully glitched, the application on the Pi stops 
 ## Success rates
 
 ## Observations
+
+Talk about how the trace looks similar to what LimitedResults shows, pure hardware process?
 
 # CC2541 glitch campaign
 
