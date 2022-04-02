@@ -53,7 +53,7 @@ Embedded systems based around microcontrollers are in everything now, from watch
 Microcontroller firmware is often protected from being read by the consumer with code readout protection (CRP), usually in the form of disabling debugging access to the microcontroller.
 This means that independent security researchers can't easily assess the firmware for security vulnerabilities and consumers of many IoT devices are left with e-waste they can't repurpose when the manufacturer goes bankrupt and can no longer provide them with the service they paid for.
 
-There are many ways that this can be remedied, but I've looked into fault injection methods to bypass the CRP and dump the firmware.
+There are many ways that this can be remedied, but I've been researching fault injection methods to bypass the CRP and dump the firmware.
 Specifically, using voltage injection.
 Why?
 Because:
@@ -120,12 +120,12 @@ After removing it, I quickly got the glitch to work successfully.
 ## Glitching the CC2541
 
 I haven't managed to glitch the Texas Instruments CC2541, but I've learned a lot along the way and this section covers my methods.
-In many respects, I've followed many of the key methods outlined in the work linked on this slide.
-Specifically, bootloader analysis---there is no default bootloader in the flash as far as I can tell---using simple power analysis to look for critical sections---areas to glitch---and differential power analysis to look deeper into potential critical sections for more differences between CRP enabled and CRP disabled CPU activity.
+In many respects, I've followed many of the key methods outlined in the work linked on this slide:
+Bootloader analysis---there is no default bootloader in the flash as far as I can tell---using simple power analysis to look for critical sections---areas to glitch---and differential power analysis to look deeper into potential critical sections for more differences between CRP enabled and CRP disabled CPU activity.
 
 ### Observations
 
-After connecting everything, the first thing I did was use the oscilloscope to monitor the behaviour of the CC Debugger and the CC2541 during various tasks, such as setting the debug lock bit and reading the info page from the CC2541.
+After connecting everything, the first thing I did was use an oscilloscope to monitor the behaviour of the CC Debugger and the CC2541 during various tasks, such as setting the debug lock bit and reading the info page from the CC2541.
 Looking at the CPU voltage trace, I then identified potential critical sections to glitch.
 
 Those sections were:
@@ -155,10 +155,9 @@ Glitching the potential critical sections saw no change in the outcome.
 
 ## Conclusions
 
-I'm not sure whether lack of CC2541 crowbar was due to time constraints or that a this method is impossible, but I'm leaning towards the latter.
-I believe the crowbar glitch is not possible because there does not seem to be a firmware bootloader in protected memory that can be affected by glitching the CPU.
+I believe the crowbar glitch is not possible on the CC2541 because there does not seem to be a firmware bootloader in protected memory that can be affected by glitching the CPU.
 
-During this project, I've found that voltage glitching has been made more accessible with the Pico Debug ‘n’ Dump, due to the cost and ease of use.
+During this project, I've found that voltage glitching has been made more accessible with the Pico Debug ‘n’ Dump, due to the low cost and ease of use.
 If the resistor was the correct spec, I’d have managed to glitch the nRF52832 with far less troubleshooting, probably within a few days, or even under an hour, with a basic setup guide and more comprehensive pin descriptions.
 The GIAnT, on the other hand, is a much more complex and versatile device, which gives it a lot of value when it comes to discovering which type of glitch will work best for a microcontroller, but not ease of use.
 
@@ -174,3 +173,8 @@ If I had more time, I would have worked on compiling a more conclusive different
 I also would have tried glitching the main voltage for the CC2541 to see if I could set bits.
 David also brought to my attention an old vulnerability with the CC2430, to see whether it still applied to the CC2541, which I would have also liked to investigate.
 I'd have also liked to work on improving ease of use of voltage glitching, primarily by extending GIAnT and adding to the documentation.
+
+
+# Feedback
+
+Be very specific about structuring in my report: boundaries between experiments, little experiments like finding minimum pulse widths, success rates, etc.
