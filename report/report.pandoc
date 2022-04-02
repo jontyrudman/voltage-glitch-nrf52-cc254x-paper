@@ -77,10 +77,39 @@ These similarities are why LimitedResults' method can also be applied to the nRF
 Without a background in electronics and fault injection, the reproduction of Roth's and LimitedResults' experiments proved to be a learning experience.
 This process would go on to provide knowledge and practise in preparation for investigating whether similar attacks would be possible on the CC2541.
 
-## Modifications
+## Glitch methods
 
-- Removal of voltage regulator capacitor.
-- Soldered wires to VDD, GND, SWDCLK, SWDIO, DEC1 and how I knew it was DEC1.
+The glitch method for nRF52 microcontrollers, outlined by @limitedresultsNRF52DebugResurrection2020 and @rothHowAppleAirTags2021, is to:
+
+1. Power on the microcontroller.
+2. Wait until the memory controller starts transferring the user information configuration register values---including APPROTECT, the value of which determines whether the debug access port is protected---to the core. This time period is called the _glitch offset_.
+3. Short the CPU power to ground for a time period, the _glitch width_.
+
+### Generic setup
+
+Before using a glitch system such as the Pico Debug'n'Dump or GIAnT, it is important to identify which pins will need to be accessed for the experiment.
+The following pins must be identified on the target:
+
+- Power supply and ground connections because the microcontroller needs to be powered and operational while glitching.
+- Debug access pins, for dumping firmware and sending other commands to the target.
+- A decoupling circuit for the target, if not glitching the power supply voltage.
+
+### Modifications
+
+A number of wires needed to be attached to the nRF52832 development board for easy connection to other jumper wires.
+These wires had to be connected to the following pins on the nRF52832 chip itself:
+
+- VDD: Power supply
+- VSS: Ground
+- SWDCLK: Serial wire debug clock input, for debugging
+- SWDIO: Serial wire debug I/O, for debugging
+- DEC1: 0.9V regulator digital supply decoupling (CPU voltage regulator)
+
+Identifying which pins these are requires referring to the nRF52832 Product Specification and using a multimeter to find the development board pins they are attached to.
+The pins on the nRF52832 development board were too narrow and close together for any of the jumper wires available, so jumper wires were cut and soldered onto them for easier access.
+
+Glitching the CPU voltage regulator decoupling circuit allows an attacker to specifically target the CPU, rather than the full system, which prevents the glitch being "absorbed" by other circuitry.
+The decoupling capacitor was also removed from the DEC1, to prevent damping of the glitch and the traces when reading the oscilloscope. <!-- Check accuracy of this -->
 
 ## Using Pico Debug 'n' Dump
 
@@ -111,6 +140,8 @@ The GIAnT is configured to keep shorting the CPU of the nRF chip to ground momen
 It repeats each glitch a few times, and with multiple pulse widths, to increase the likelihood of a successful glitch.
 
 Once this memory copy is successfully glitched, the application on the Pi stops running, and a dump of the nRF52832's firmware is left in the working directory.
+
+Reference code.
 
 ## Finding a suitable glitch width
 
