@@ -111,7 +111,7 @@ The pins on the nRF52832 development board were too narrow and close together fo
 Glitching the CPU voltage regulator decoupling circuit allows an attacker to specifically target the CPU, rather than the full system, which prevents the glitch being "absorbed" by other circuitry.
 The decoupling capacitor was also removed from the DEC1, to prevent damping of the glitch and the traces when reading the oscilloscope. <!-- Check accuracy of this -->
 
-## Using Pico Debug 'n' Dump
+## Using Pico Debug'n'Dump
 
 The Debug'n'Dump is a product created by Thomas Roth (stacksmashing) to make voltage glitching using the "crowbar" method straightforward.
 
