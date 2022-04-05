@@ -167,52 +167,87 @@ This step can also be used to diagnose any problems with the glitching setup bec
 <!-- TODO: Upload test application to GitLab and give credit for modified code -->
 <!-- TODO: Reference test application code -->
 <!-- TODO: Reference glitcher code -->
-<!-- TODO: Show example of glitch -->
+<!-- TODO (HOME): Show example of glitch -->
 
 ### Finding a suitable minimum glitch offset
 
 <!-- TODO: Why it's a minimum, must be reliably before the critical section and slowly step through it. -->
 <!-- TODO: Critical section hunting and speculation -->
+<!-- TODO: Talk about how the traces are similar to what LimitedResults and Roth show -->
 <!-- TODO: Critical section screenshots for nRF52832 -->
-
-After learning more about the Python library to configure my glitching application, I created and ran this application, which targeted a critical section identified by LimitedResults and confirmed by Thomas Roth.
 
 The glitch offset is configured to glitch the CPU of the nRF chip at around the same offset as what is assumed to be flash memory activity, which includes when the readout protection data is copied.
 
 ### Success rates
 
 <!-- TODO: Reiterate why there are repeats and stepping through widths and offsets to improve success rates -->
-<!-- TODO: Table with success rates for a range of parameters -->
+<!-- TODO (HOME): Table with success rates for a range of parameters -->
 <!-- TODO: Say that it's probably more important that a glitch is repeated than the different widths, could probably just repeat at the same width, but it reliably glitches successfully anyway -->
 
 ## Observations
 
-Talk about how the trace looks similar to what LimitedResults shows, pure hardware process?
+<!-- TODO (HOME): Is it really a "pure hardware process" as LimitedResults says? It looks like on a successful glitch, the whole low section is skipped. -->
 
 # CC2541 glitch campaign
 
-Background to the chip and some key details, chip family.
-Differences to nRF52.
-Doesn't have an embedded bootloader, but neither does the nRF52832 (?), so why does this mean the crowbar glitch isn't possible?
+<!-- TODO: Background to the chip and some key details, chip family. -->
+<!-- TODO: Differences to nRF52. Similar in that there's no BootROM. -->
+<!-- TODO: What I learned from nRF52 that shaped what I did here -->
 
 ## Modifications
 
+<!-- TODO: Mention similarities -->
+<!-- TODO: Formalise the following and refer to explanation in nRF52832 Modifications
+
 - Removal of voltage regulator capacitor, difference with and without.
 - Soldered wires to VDD, GND, RESETn, DD, DC, DCOUPL and how I knew it was DCOUPL.
+-->
 
 ## Glitch campaign plan
 
-## Finding a suitable glitch width
+<!-- TODO: Speculation about what you might be able to glitch, before looking at potential critical sections on the oscilloscope. Rename this section. -->
+
+## Finding a suitable minimum glitch width
+
+<!-- TODO: Refer to nRF52 section for reasoning -->
+<!-- TODO: Upload test application to GitLab and give credit for modified code -->
+<!-- TODO: Reference test application code, why is it different to O'Flynn's? Simpler. -->
+<!-- TODO: Reference glitcher code -->
+<!-- TODO (HOME): Show example of glitch -->
+
+## Finding a suitable minimum glitch offset
+
+<!-- TODO: Critical section hunting and speculation, based on nRF52 findings -->
+<!-- TODO: Potential critical section screenshots for CC2541 -->
+<!-- TODO: SPA -->
 
 ## Glitch attempts
 
-## Power analysis
+<!-- TODO: Detail initial glitch attempts on potential critical sections, and outcomes. -->
+
+## Differential power analysis
+
+<!-- TODO: Show results of DPA, why they don't really help -->
+
+## Observations
+
+<!-- TODO: Doesn't have an embedded bootloader, but neither does the nRF52832, so why does this mean the crowbar glitch isn't possible? -->
 
 ## Future work
+
+<!-- TODO: Talk about what you'd like to do for the CC2541 in the future:
+
+- If I had more time, I would have worked on compiling a more conclusive differential power analysis.
+- I also would have tried glitching the main voltage for the CC2541 to see if I could set bits.
+- David also brought to my attention an old vulnerability with the CC2430, to see whether it still applied to the CC2541, which I would have also liked to investigate.
+- I'd have also liked to work on improving ease of use of voltage glitching, primarily by extending GIAnT and adding to the documentation.
+-->
 
 # Evaluation
 
 ## Comparing outcomes to success criteria
+
+<!-- TODO: Write section. Use below as a template -->
 
 What I'd have done differently.
 For some things, it's hard to say, because I've learned a lot for the first time in this project.
@@ -221,12 +256,9 @@ I would also have attempted DPA earlier on, but I did not know what the knowledg
 
 I'd also have set my success criteria from the start to be more focussed on learning, rather than trying to successfully glitch a chip I had very little information about at the time.
 
-If I had more time, I would have worked on compiling a more conclusive differential power analysis.
-I also would have tried glitching the main voltage for the CC2541 to see if I could set bits.
-David also brought to my attention an old vulnerability with the CC2430, to see whether it still applied to the CC2541, which I would have also liked to investigate.
-I'd have also liked to work on improving ease of use of voltage glitching, primarily by extending GIAnT and adding to the documentation.
-
 ## Conclusion
+
+<!-- TODO: Write conclusion. Use below as a template -->
 
 I believe the crowbar glitch is not possible on the CC2541 because there does not seem to be a firmware bootloader in protected memory that can be affected by glitching the CPU.
 
@@ -235,7 +267,6 @@ If the resistor was the correct spec, I’d have managed to glitch the nRF52832 
 The GIAnT, on the other hand, is a much more complex and versatile device, which gives it a lot of value when it comes to discovering which type of glitch will work best for a microcontroller, but not ease of use.
 
 If you know that you'll be glitching the bootloader, can use a CPU crowbar and don't need very precise timings, the Debug n Dump is a less expensive, easier option.
-
 
 # References
 
