@@ -8,7 +8,7 @@
 
 | DnD          | nRF      | ST-LINK | Why                                   |
 |--------------|----------|---------|---------------------------------------|
-| Trig         | VCC      |         | Provides 1.8V and starts the nRF      |
+| Trig         | VCC      |         | Provides 3.3V and starts the nRF      |
 | Glitch       | CPU Regu.|         | Sends a glitch voltage to the CPU     |
 | GND(glitcher)| GND      |         | Grounds the nRF                       |
 | In 0         | DEC4     |         | The DnD checks this to see if nRF on  |
