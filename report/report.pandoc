@@ -17,6 +17,8 @@ bibliography: references.bib
 
 # Introduction
 
+<!-- TODO: Write introduction. Use below as a template -->
+
 <!-- Put in mention of code readout protection, implementation attacks and background -->
 <!-- The following is ripped from the demonstration speaker notes and needs turning into acceptable language -->
 
@@ -77,7 +79,7 @@ These similarities are why LimitedResults' method can also be applied to the nRF
 Without a background in electronics and fault injection, the reproduction of Roth's and LimitedResults' experiments proved to be a learning experience.
 This process would go on to provide knowledge and practise in preparation for investigating whether similar attacks would be possible on the CC2541.
 
-## Glitch methods
+## Glitch method
 
 The glitch method for nRF52 microcontrollers, outlined by @limitedresultsNRF52DebugResurrection2020 and @rothHowAppleAirTags2021, is to:
 
@@ -87,12 +89,14 @@ The glitch method for nRF52 microcontrollers, outlined by @limitedresultsNRF52De
 
 ### Generic setup
 
-Before using a glitch system such as the Pico Debug'n'Dump or GIAnT, it is important to identify which pins will need to be accessed for the experiment.
+Before using a glitch generator such as the Pico Debug'n'Dump or GIAnT, it is important to identify which pins will need to be accessed for the experiment.
 The following pins must be identified on the target:
 
 - Power supply and ground connections because the microcontroller needs to be powered and operational while glitching.
 - Debug access pins, for dumping firmware and sending other commands to the target.
 - A decoupling circuit for the target, if not glitching the power supply voltage.
+
+A general purpose computer is used to configure the glitch parameters on the glitch generator and communicate with the nRF52832 over a debugging interface---in the case of the nRF52832, an ST-LINK V2, connected over USB to the general purpose computer.
 
 ### Modifications
 
@@ -113,39 +117,73 @@ The decoupling capacitor was also removed from the DEC1, to prevent damping of t
 
 ## Using Pico Debug'n'Dump
 
-The Debug'n'Dump is a product created by Thomas Roth (stacksmashing) to make voltage glitching using the "crowbar" method straightforward.
+The video demonstrating the nRF52832 glitch, uploaded by @rothHowAppleAirTags2021, introduces the Pico Debug'n'Dump, a device Roth created to make crowbar voltage glitching cheaper and easier.
 
-After flashing the glitching firmware to the Debug'n'Dump and wiring everything up, running it didn't seem to have any effect on the nRF52832, but at that point I was also blind to what was happening without an oscilloscope.
-I acquired an oscilloscope from David Oswald, and observed that there was just a tiny pulse where the glitch should happen; it wasn't shorting.
-After creating an issue on the airtag-glitcher GitHub repo documenting my findings, I moved on to using David's own FPGA-based glitching board, the GIAnT, to replicate the attack.
+The glitching application, published by @rothAirtagglitcher2021 on GitHub, was flashed to the Debug'n'Dump by the general purpose computer.
+Below is a table of the wiring setup.
 
-And wiring.
+| Debug'n'Dump | nRF52832 | ST-LINK | Description                           |
+|--------------|----------|---------|---------------------------------------|
+| Trig         | VDD      |         | Supplies nRF52832 with 3.3V           |
+| Glitch       | DEC1     |         | For shorting the CPU                  |
+| GND          | GND      |         | Grounds the nRF52832                  |
+|              | SWDIO    | SWDIO   | Serial wire debug I/O                 |
+|              | SWCLK    | SWCLK   | Serial wire clock input from ST-LINK  |
 
-By the time I'd glitched the nRF chip using the GIAnT, Thomas Roth had responded to my issue on GitHub, blaming a resistor of the incorrect spec, which apparently served a minor purpose and could be removed.
-After removing it, I quickly got the glitch to work successfully.
+The first run didn't seem to have any effect on the nRF52832, but an oscilloscope wasn't available for troubleshooting at the time.
+After acquiring an oscilloscope and connecting it to the Glitch-DEC1 wire, it was observed that there was only a small pulse happening on DEC1 at the glitch offset; the short circuit wasn't being applied.
+An issue was created on the airtag-glitcher GitHub repo documenting these findings<!-- TODO: link -->.
+It was established that there was a manufacturing issue with some Debug'n'Dump units, where a pull-down resistor for the Glitch pin was rated at $10k \Omega$ rather than $100 \Omega$, preventing the short circuit from being applied.
+This resistor could be removed due to the fact that the Pico pins are internally pulled down; it was redundant.
+In the meantime, the approach had changed to use GIAnT, an FPGA-based glitching board and implementation analysis toolkit, to replicate the attack.
+Returning to the Debug'n'Dump---after succeeding with GIAnT---and removing its redundant resistor fixed the issue and not only was the short circuit of DEC1 clearly visible on an oscilloscope, but CRP was bypassed within a few minutes.
 
 ## Using GIAnT
 
-GIAnT has many more features than the Debug'n'Dump, thanks to its use of more circuits, and an FPGA.
-Initially it was set up for a different type of voltage glitch, but David made a change to the FPGA code to utilise a transistor, which I soldered to the board, to short a pin to ground (the "crowbar").
+GIAnT, an implementation analysis toolkit based around an FPGA and created by @oswaldGiantrevBGIAnTFault, was used as the glitch generator for attacking the nRF52832 after experimenting with the Pico Debug'n'Dump.
+The GIAnT board used for this experiment didn't originally have a transistor soldered to it (but had the solder pads available) for the purposes of a crowbar circuit, so a MOSFET had to be added to the trace leading to pin T1, along with the capability to use it in the FPGA bytestream.
+
+Wiring the nRF52832 to the GIAnT is similar to the Pico Debug'n'Dump configuration: VDD on the MCU is plugged into the DAC output on the GIAnT and DEC1 is wired to T1 on the GIAnT for the CPU crowbar.
+
+After flashing the firmware to the GIAnT development board, a Python library is used to interact with the board over USB and configure DAC voltage and the glitching parameters: the pin address for triggering the glitch, the glitch offset and the glitch width.
+
+<!-- TODO: Reference glitcher code. -->
+
+The application configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch.
+The initial offset is configured to be immediately before the critical section (see "Finding a suitable glitch offset").
+Once there is a glitch success---defined as the firmware read command being allowed by the MCU---the application on the controlling computer stops running, and a dump of the nRF52832's firmware is left in the working directory.
+
+### Finding a suitable minimum glitch width
+
+Although the parameters will change, a suitable minimum glitch width should be found.
+This is defined in this case as the smallest glitch width at which a CPU instruction will be skipped or miscalculated.
+If the glitch width is too small, there is a chance that it will have no effect (or is too small for the glitch generator), but if it is too large, the microcontroller might reset or the CPU might not start up again.
+
+<!-- TODO: Say why it's not worth increasing the glitch width too much, it would take too long -->
+
+This step can also be used to diagnose any problems with the glitching setup because in most cases where the CPU voltage is glitched, a fault should occur in the execution of the running application.
+@oflynnFaultInjectionUsing2016 uses a `for` loop containing a counter incrementation, nested in another `for` loop, to show how the counter incrementation is skipped when both loops are complete and the counter is printed. <!-- Do this for nRF52832? -->
+
+<!-- TODO: Upload test application to GitLab and give credit for modified code -->
+<!-- TODO: Reference test application code -->
+<!-- TODO: Reference glitcher code -->
+<!-- TODO: Show example of glitch -->
+
+### Finding a suitable minimum glitch offset
+
+<!-- TODO: Why it's a minimum, must be reliably before the critical section and slowly step through it. -->
+<!-- TODO: Critical section hunting and speculation -->
+<!-- TODO: Critical section screenshots for nRF52832 -->
+
 After learning more about the Python library to configure my glitching application, I created and ran this application, which targeted a critical section identified by LimitedResults and confirmed by Thomas Roth.
-
-And wiring.
-
-Describe running it.
 
 The glitch offset is configured to glitch the CPU of the nRF chip at around the same offset as what is assumed to be flash memory activity, which includes when the readout protection data is copied.
 
-The GIAnT is configured to keep shorting the CPU of the nRF chip to ground momentarily, at an increasing offset approaching the critical section after the chip has started.
-It repeats each glitch a few times, and with multiple pulse widths, to increase the likelihood of a successful glitch.
+### Success rates
 
-Once this memory copy is successfully glitched, the application on the Pi stops running, and a dump of the nRF52832's firmware is left in the working directory.
-
-Reference code.
-
-## Finding a suitable glitch width
-
-## Success rates
+<!-- TODO: Reiterate why there are repeats and stepping through widths and offsets to improve success rates -->
+<!-- TODO: Table with success rates for a range of parameters -->
+<!-- TODO: Say that it's probably more important that a glitch is repeated than the different widths, could probably just repeat at the same width, but it reliably glitches successfully anyway -->
 
 ## Observations
 
