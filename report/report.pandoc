@@ -8,7 +8,7 @@ date: >
   University of Birmingham
 abstract: >
   This is an abstract.
-  Spoil the ending; say how you haven't managed to glitch the CC2541 with a crowbar glitch on the CPU.
+  Spoil the ending; say how you haven't managed to glitch the CC2541 with a crowbar glitch on the CPU. TODO.
 csl: harvard-cite-them-right.csl
 bibliography: references.bib
 ---
@@ -159,10 +159,13 @@ Although the parameters will change, a suitable minimum glitch width should be f
 This is defined in this case as the smallest glitch width at which a CPU instruction will be skipped or miscalculated.
 If the glitch width is too small, there is a chance that it will have no effect (or is too small for the glitch generator), but if it is too large, the microcontroller might reset or the CPU might not start up again.
 
-<!-- TODO: Say why it's not worth increasing the glitch width too much, it would take too long -->
+On each iteration, the glitch width is increased by $10ns$ to increase the likelihood of a successful glitch, should it require a longer glitch width.
+The difference between the smallest and largest glitch width is not large, because it could extend runtime unnecessarily, given the fact that the minimum glitch width should already reliably glitch a test application.
+<!-- TODO: Reference glitcher code -->
 
 This step can also be used to diagnose any problems with the glitching setup because in most cases where the CPU voltage is glitched, a fault should occur in the execution of the running application.
 @oflynnFaultInjectionUsing2016 uses a `for` loop containing a counter incrementation, nested in another `for` loop, to show how the counter incrementation is skipped when both loops are complete and the counter is printed. <!-- Do this for nRF52832? -->
+Due to the added complexity of relying on printing to a buffer---requiring some use of another serial connection in this case---a simple GPIO pin toggling application was used and an oscilloscope was connected to that pin to observe the effect of a glitch.
 
 <!-- TODO: Upload test application to GitLab and give credit for modified code -->
 <!-- TODO: Reference test application code -->
@@ -171,7 +174,9 @@ This step can also be used to diagnose any problems with the glitching setup bec
 
 ### Finding a suitable minimum glitch offset
 
-<!-- TODO: Why it's a minimum, must be reliably before the critical section and slowly step through it. -->
+The glitch offset for the nRF52832 is the amount of time after supplying power to its development board, until the glitch is applied.
+In practise, this makes it the amount of time until immediately before the start of the critical section to make sure a glitching opportunity isn't missed and to compensate for any jitter (critical section occurring earlier or later in the next power on).
+
 <!-- TODO: Critical section hunting and speculation -->
 <!-- TODO: Talk about how the traces are similar to what LimitedResults and Roth show -->
 <!-- TODO: Critical section screenshots for nRF52832 -->
@@ -182,7 +187,7 @@ The glitch offset is configured to glitch the CPU of the nRF chip at around the 
 
 <!-- TODO: Reiterate why there are repeats and stepping through widths and offsets to improve success rates -->
 <!-- TODO (HOME): Table with success rates for a range of parameters -->
-<!-- TODO: Say that it's probably more important that a glitch is repeated than the different widths, could probably just repeat at the same width, but it reliably glitches successfully anyway -->
+<!-- TODO: Say that it's probably more important that a glitch is repeated than the different widths, could probably just repeat at the same width, but it reliably glitches successfully anyway. With jitter, the next width is probably in a different place. Need to test this theory. -->
 
 ## Observations
 
@@ -262,11 +267,11 @@ I'd also have set my success criteria from the start to be more focussed on lear
 
 I believe the crowbar glitch is not possible on the CC2541 because there does not seem to be a firmware bootloader in protected memory that can be affected by glitching the CPU.
 
-During this project, I've found that voltage glitching has been made more accessible with the Pico Debug ‘n’ Dump, due to the low cost and ease of use.
+During this project, I've found that voltage glitching has been made more accessible with the Pico Debug‘n’Dump, due to the low cost and ease of use.
 If the resistor was the correct spec, I’d have managed to glitch the nRF52832 with far less troubleshooting, probably within a few days, or even under an hour, with a basic setup guide and more comprehensive pin descriptions.
 The GIAnT, on the other hand, is a much more complex and versatile device, which gives it a lot of value when it comes to discovering which type of glitch will work best for a microcontroller, but not ease of use.
 
-If you know that you'll be glitching the bootloader, can use a CPU crowbar and don't need very precise timings, the Debug n Dump is a less expensive, easier option.
+If you know that you'll be glitching the bootloader, can use a CPU crowbar and don't need very precise timings, the Debug'n'Dump is a less expensive, easier option.
 
 # References
 

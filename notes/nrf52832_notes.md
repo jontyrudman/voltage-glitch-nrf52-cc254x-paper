@@ -182,3 +182,20 @@ I removed the culprit resistor and now it's properly shorting the CPU regulator.
 - Using the system power into IN_0 on the DnD in order to satisfy breaking out of the while loop still seems to add a crazy long delay (measure this, but about 20ms); just remove the while loop altogether.
 
 Talk about how the NVMC activity seems to jump around the fault. Why?
+
+# Minimum glitch width experiment
+
+Width of 1000ns causes the CPU to fail. Even 180 does that late in execution (for the NVMC glitch it's fine).
+GIAnT has a min glitch width of 10ns.
+
+Offset of 5ms causes it to break out of the while loop, minimum width 50ns.
+Same with 8ms.
+
+Maybe the reason it never skips a wiggle is because the skipping out of the delay subroutine puts the program counter into some other area of memory where nothing happens.
+Whereas the CC2541 delay is just NOPs.
+nrfx_coredep_delay_us is defined in modules/nrfx/soc/nrfx_coredep.h.
+
+As low as 50 doesn't really work for the NVMC glitch, reason for success rates experiment.
+
+Offset can change a bit based on environmental factors.
+Can't really comment on success rates because the offset moves (so hard to be consistent), and in any given range it's only likely that there are a couple of places close together that the glitch will be successful in.

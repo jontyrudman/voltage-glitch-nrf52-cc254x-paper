@@ -5,3 +5,4 @@ FYP\ Discussion.md
 *.pkl
 __pycache__
 general/record_and_dpa/cc-tool.log
+_build
