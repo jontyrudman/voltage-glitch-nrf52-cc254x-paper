@@ -132,7 +132,7 @@ Below is a table of the wiring setup.
 
 The first run didn't seem to have any effect on the nRF52832, but an oscilloscope wasn't available for troubleshooting at the time.
 After acquiring an oscilloscope and connecting it to the Glitch-DEC1 wire, it was observed that there was only a small pulse happening on DEC1 at the glitch offset; the short circuit wasn't being applied.
-An issue was created on the airtag-glitcher GitHub repo documenting these findings<!-- TODO: link -->.
+An issue was created on the airtag-glitcher GitHub repo documenting these findings, @GlitchPinNot.
 It was established that there was a manufacturing issue with some Debug'n'Dump units, where a pull-down resistor for the Glitch pin was rated at $10k \Omega$ rather than $100 \Omega$, preventing the short circuit from being applied.
 This resistor could be removed due to the fact that the Pico pins are internally pulled down; it was redundant.
 In the meantime, the approach had changed to use GIAnT, an FPGA-based glitching board and implementation analysis toolkit, to replicate the attack.
@@ -147,9 +147,7 @@ Wiring the nRF52832 to the GIAnT is similar to the Pico Debug'n'Dump configurati
 
 After flashing the firmware to the GIAnT development board, a Python library is used to interact with the board over USB and configure DAC voltage and the glitching parameters: the pin address for triggering the glitch, the glitch offset and the glitch width.
 
-<!-- TODO: Reference glitcher code. -->
-
-The application configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch---that is, a glitch causing the bypass of CRP.
+The application, @NRF52832FullGIAnT, configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch---that is, a glitch causing the bypass of CRP.
 The initial offset is configured to be immediately before the critical section (see "Finding a suitable glitch offset").
 Once there is a glitch success---defined as the firmware read command being allowed by the MCU---the application on the controlling computer stops running, and a dump of the nRF52832's firmware is left in the working directory.
 
@@ -165,14 +163,19 @@ The difference between the smallest and largest glitch width is not large, becau
 This step can also be used to diagnose any problems with the glitching setup because in most cases where the CPU voltage is glitched, a fault should occur in the execution of the running application.
 @oflynnFaultInjectionUsing2016 uses a `for` loop containing a counter incrementation, nested in another `for` loop, to show how the counter incrementation is skipped when both loops are complete and the counter is printed.
 Due to the added complexity of relying on printing to a buffer---requiring some use of another serial connection in this case---a simple GPIO pin toggling application was used and an oscilloscope was connected to that pin to observe the effect of a glitch, @rudmanNRF52832BlinkPin.
+Normal operation of this application is shown in figure \ref{img_nrf52832_blink_no_glitch}.
+
+![The pin toggling application functioning normally, with no glitch. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Trigger _T_ points to the moment the nRF52832 becomes powered.\label{img_nrf52832_blink_no_glitch}](res/nrf52832_blink_no_glitch.png){width=400px}
 
 After creating a simple script to try a given glitch width over a rough range of offsets, @rudmanMinimumGlitchWidth, the script was run against the nRF52832 running its pin toggling application.
-Manually increasing the value of `width` in the script from 10 (in nanoseconds)---the GIAnT board cannot produce glitches shorter than $10ns$---showed that the minimum glitch width to successfully fault the CPU execution, at least in the case of application execution, is $50ns$.
-At widths as large as $180ns$, the CPU would permanently fail until the next reset.
+Manually increasing the value of `width` in the script from 10 (in nanoseconds)---the GIAnT board cannot produce glitches shorter than $10ns$---showed that the minimum glitch width to successfully fault the CPU execution, at least in the case of application execution, is $50ns$, as shown in figure \ref{img_nrf52832_blink_glitch}.
+At widths as large as $140ns$, the CPU would permanently fail until the next reset, as shown in figure \ref{img_nrf52832_blink_permafail}.
 
-<!-- TODO (HOME): Show example of glitch -->
+![The pin toggling application being faulted, with a $50ns$ glitch applied to the CPU core at trigger _T_. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_glitch}](res/nrf52832_blink_glitch.png){width=400px}
 
-Later investigation has found that a width of $50ns$ is typically too short to reliably fault the NVMC activity and therefore the CRP, and $180ns$ does not cause the CPU to permanently fail until reset when targeting the critical section. <!-- Why? -->
+![The pin toggling application being faulted, with a $140ns$ glitch applied to the CPU core at trigger _T_, causing the CPU to permanently fail until next reset. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_permafail}](res/nrf52832_blink_permafail.png){width=400px}
+
+Later investigation has found that a width of $50ns$ is typically too short to reliably fault the NVMC activity and therefore the CRP, and glitch widths as large as $180ns$ do not cause the CPU to permanently fail until reset when targeting the critical section. <!-- Why? -->
 This is why it is important to cycle through a number of glitch widths when approaching a critical section.
 
 ### Finding a suitable minimum glitch offset
@@ -181,7 +184,15 @@ The glitch offset for the nRF52832 is the amount of time after supplying power t
 In practise, this makes it the amount of time until immediately before the start of the critical section to make sure a glitching opportunity isn't missed and to compensate for any jitter (the critical section occurring earlier or later on the next power cycle).
 
 Because this experiment was carried out to replicate work by @limitedresultsNRF52DebugResurrection2020 and @rothHowAppleAirTags2021 and apply a successful glitch, the focus was to find the same critical sections that they have highlighted in their work.
-<!-- TODO (HOME): Critical section screenshots for nRF52832 -->
+
+![Red box highlighting critical section after nRF52832 power-on. Trace 1 (yellow) is the CPU core voltage, trace 2 (blue) is the voltage of VDD, trace 3 (purple) is the pin being toggled by the application on the nRF52832.\label{img_nrf52832_crit_section_no_zoom}](res/nrf52832_crit_section_no_zoom_highlight.png){width=400px}
+
+![Zoomed-in version of the traces in figure \ref{img_nrf52832_crit_section_no_zoom}. Critical section (NVMC activity) highlighted in red box.\label{img_nrf52832_crit_section_zoom}](res/nrf52832_crit_section_zoom_highlight.png){width=400px}
+
+![Screenshot of the nRF52840 critical section, captured by @limitedresultsNRF52DebugResurrection2020. Trace 2 (light blue) is the CPU core voltage at DEC1 and trace 4 (dark blue) is the system power voltage at DEC4. Compare with figure \ref{img_nrf52832_crit_section_zoom}.\label{img_nrf52832_limitedresults_crit_section}](res/nrf52832_limitedresults_crit_section.png){width=400px}
+
+<!-- Add comparison to LimitedResults' picture -->
+
 <!-- TODO: Talk about how the traces are similar to what LimitedResults and Roth show -->
 <!-- TODO: Name the critical section range and why it changes due to jitter -->
 
@@ -189,11 +200,17 @@ The glitch offset is configured to glitch the CPU of the nRF chip at around the 
 
 ### Success rates
 
+![Glitch offset vs. proportion of successes (out of 399 successes) for the nRF52832.](res/nrf52832_offset_vs_success.png){width=400px}
+
+![Glitch width vs. proportion of successes (out of 399 successes) for the nRF52832.](res/nrf52832_width_vs_success.png){width=400px}
+
 <!-- TODO: Reiterate why there are repeats and stepping through widths and offsets to improve success rates -->
 <!-- TODO (HOME): Table with success rates for a range of parameters -->
 <!-- TODO: Say that it's probably more important that a glitch is repeated than the different widths, could probably just repeat at the same width, but it reliably glitches successfully anyway. With jitter, the next width is probably in a different place. Need to test this theory. -->
 
 ## Observations
+
+<!-- TODO: Add a glitch example trace screenshot -->
 
 <!-- TODO (HOME): Is it really a "pure hardware process" as LimitedResults says? It looks like on a successful glitch, the whole low section is skipped. -->
 
