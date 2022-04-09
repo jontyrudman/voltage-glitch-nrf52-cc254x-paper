@@ -185,7 +185,7 @@ Talk about how the NVMC activity seems to jump around the fault. Why?
 
 # Minimum glitch width experiment
 
-Width of 1000ns causes the CPU to fail. Even 180 does that late in execution (for the NVMC glitch it's fine).
+Width of 1000ns causes the CPU to fail. Even as low as 140 does that late in execution (for the NVMC glitch it's fine).
 GIAnT has a min glitch width of 10ns.
 
 Offset of 5ms causes it to break out of the while loop, minimum width 50ns.
