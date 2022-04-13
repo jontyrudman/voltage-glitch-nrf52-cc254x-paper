@@ -598,3 +598,13 @@ I don't believe there's a bootloader hidden on the CC2541, for the following rea
 - Without an application flashed, there is no CPU activity (TODO: Capture this).
 - No time difference between CRP enabled and disabled (TODO: Capture this).
 - The CC Debugger is required for flashing the chip, unless your own serial or BLE OTA bootloader is present in the flash.
+
+
+# Being more level-headed
+
+After doing what I put in my report as the first step (finding the minimum glitch width, I realised that the glitch width I was using before was way too big, at 1us.
+The "skipping" of pin toggling I thought I saw before was actually resetting.
+After more investigation I found that the same kind of range, 50-100ns, works on the CC2541 too, but must occur very close to the pin toggle to skip it.
+All this time I've been trying to glitch and just resetting the chip!!!
+
+Trying again.
