@@ -154,7 +154,7 @@ The application, @NRF52832FullGIAnT, configures the GIAnT board to keep shorting
 The initial offset is configured to be immediately before the critical section (see "Finding a suitable glitch offset").
 Once there is a glitch success---defined as the firmware read command being allowed by the MCU---the application on the controlling computer stops running, and a dump of the nRF52832's firmware is left in the working directory.
 
-### Finding a suitable glitch width
+### Finding a suitable glitch width\label{section_nrf52832_suitable_width}
 
 Although the parameters will change, a suitable minimum glitch width should be found.
 This is defined in this case as the smallest glitch width at which a CPU instruction will be skipped or miscalculated.
@@ -170,10 +170,10 @@ Normal operation of this application is shown in figure \ref{img_nrf52832_blink_
 
 ![The pin toggling application functioning normally, with no glitch. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Trigger _T_ points to the moment the nRF52832 becomes powered.\label{img_nrf52832_blink_no_glitch}](res/nrf52832_blink_no_glitch.png){width=400px}
 
-After creating a simple script to try a given glitch width over a rough range of offsets, @rudmanMinimumGlitchWidth, the script was run against the nRF52832 running its pin toggling application.
+After creating a simple script to try a given glitch width over a rough range of offsets, @rudmanNRF52832MinimumGlitch, the script was run against the nRF52832 running its pin toggling application.
 Manually increasing the value of `width` in the script from $10ns$---the GIAnT board cannot produce glitches shorter than $10ns$---showed that the minimum glitch width to successfully fault the CPU execution, at least in the case of application execution, is $50ns$, as shown in figure \ref{img_nrf52832_blink_glitch}.
 The result of the fault is that the application jumps out of the `while` loop altogether, even at different offsets.
-This could be due to skipping a jump instruction, but it is likely that the fault occurs during the 5ms delay routine---which doesn't just use `NOP`s in the case of the nRF52832---and jumps out of it.
+This could be due to skipping a jump instruction, but it is likely that the fault occurs during the 5ms delay routine---which doesn't just use `NOP`s in the case of the nRF52832---and jumps out of it, especially because the glitch will work at many offsets.
 At widths as large as $140ns$, the CPU would permanently fail until the next reset, as shown in figure \ref{img_nrf52832_blink_permafail}.
 
 ![The pin toggling application being faulted, with a $50ns$ glitch applied to the CPU core at trigger _T_. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_glitch}](res/nrf52832_blink_glitch.png){width=400px}
@@ -274,6 +274,7 @@ This was done so the CC Debugger could have full control over the CC2541, while 
 After unsuccessful glitch attempts during and after reset it became apparent that it would be impossible, in this configuration, to apply a glitch after powering on the CC2541---like the nRF52832 attack---because VDD would always remain high if powered by the CC Debugger.
 The finalised configuration in the table above allows the GIAnT to power up or down the CC2541, while allowing the CC Debugger to reset the CC2541.
 Even though power is supplied by the GIAnT DAC, the CC Debugger still needs to be connected with the SENSE pin---used when power is supplied to the target by another device---in order to preserve debugging functionality.
+When the target is being supplied with power by another device, the power supply on the CC Debugger breakout board must be turned off.
 
 Preserving debugging functionality required the following connections to be present for the CC Debugger:
 
@@ -283,29 +284,59 @@ Preserving debugging functionality required the following connections to be pres
 - DC
 - RST
 
-## Glitch campaign plan
+As long as SENSE is high (i.e. GIAnT DAC is supplying power to CC2541) when the CC Debugger is first manually reset with its reset button and is high when CC Debugger next communicates with the CC2541, the CC Debugger will correctly interface with the CC2541.
+
+## Glitch experiments plan
 
 For the CC2541, the CRP data is stored as a "debug lock bit": bit 127 (zero-indexed) in the "upper available flash page", according to the user guide. <!-- TODO: Reference User Guide -->
+The following experiments will be attempted:
 
-<!-- TODO: Speculation about what you might be able to glitch, before looking at potential critical sections on the oscilloscope. Rename this section. -->
+1. Try to glitch a simple application while it's running on the CC2541 to find suitable parameters.
+2. Use simple power analysis (SPA) to look for potential critical sections---areas where a voltage glitch might cause a CRP bypass.
+3. Attempt to glitch the potential critical sections using parameters found in experiment 1.
+4. If experiment 3 is unsuccessful, apply differential power analysis (DPA) to look for more definitive critical sections to glitch.
 
-## Finding a suitable minimum glitch width
+Differential power analysis has been placed last in the list of experiments due to its time-consuming nature; thousands of traces need to be recorded from the oscilloscope, which also must be interfaced with the general purpose computer.
 
-<!-- TODO: Refer to nRF52 section for reasoning -->
-<!-- TODO: Upload test application to GitLab and give credit for modified code -->
-<!-- TODO: Reference test application code, why is it different to O'Flynn's? Simpler. -->
-<!-- TODO: Reference glitcher code -->
-<!-- TODO (HOME): Show example of glitch -->
+## Finding a suitable glitch width
 
-## Finding a suitable minimum glitch offset
+The reasoning behind finding a suitable minimum glitch width is outlined in section \ref{section_nrf52832_suitable_width}.
+Much like the code written for finding the minimum glitch width for the nRF52832, a test application was written to toggle a pin on the CC2541 at $5ms$ intervals (@rudmanCC2541BlinkPin), and a script was created for using the GIAnT board to glitch the CC2541 at an increasing offset (@rudmanCC2541MinimumGlitch).
+The pin toggling application is configured to toggle pin 0.2 on the CC2541, which is connected to a header pin on its development board labelled "state".
+Normal operation of the pin toggling application is shown in figure \ref{img_cc2541_blink_no_glitch}.
 
+![TODO\label{img_cc2541_blink_no_glitch}](res/nrf52832_successful.png){width=400px}
+
+Due to the use of `NOP`s in the `delay_ms` function written by @grapsusCc254xSdcc for the CC2541 and used by the application, most offsets will not show a discernible glitch outcome, unlike for the nRF52832.
+This means that, unless the glitch occurs within <!-- TODO: How long? --> before the "state" pin toggles, the trace will continue to look like the application is running as expected, because only a few `NOP`s are skipped.
+The most that will happen is that the next pin toggle may come a few <!-- TODO: How long? --> sooner, which isn't very visible.
+Glitching within <!-- TODO: How long? --> before the "state" pin toggles does however show a successful glitch in the application, seen in figure \ref{img_cc2541_blink_glitch}.
+The smallest glitch width for a successful glitch to the pin toggling application was $50ns$.
+$80ns$ is the maximum glitch width before the microcontroller resets, as seen in figure \ref{img_cc2541_blink_reset}, where a $90ns$ width was used.
+
+![TODO\label{img_cc2541_blink_glitch}](res/nrf52832_successful.png){width=400px}
+
+![TODO\label{img_cc2541_blink_reset}](res/nrf52832_successful.png){width=400px}
+
+The reason there are no success rates listed is because the success of each glitch can't easily be determined for the test application (pin toggling) and there was no success with a CRP bypass to be measured.
+
+## Finding a suitable glitch offset
+
+<!-- TODO: Speculation about what you might be able to glitch, before looking at potential critical sections on the oscilloscope. -->
+Generally speaking, potential critical sections for bypassing CRP are found before the application starts running.
+This is because, even without boot ROM, any CRP check or movement of CRP data to the CPU is an initialisation step, which would need to occur before normal CPU execution and potential debug connection.
+
+<!-- TODO: SPA -->
 <!-- TODO: Critical section hunting and speculation, based on nRF52 findings -->
 <!-- TODO: Potential critical section screenshots for CC2541 -->
-<!-- TODO: SPA -->
+<!-- TODO: Talk about how cold boot glitching probably won't work and why -->
 
 ## Glitch attempts
 
 <!-- TODO: Detail initial glitch attempts on potential critical sections, and outcomes. -->
+<!-- TODO: Talk about both cold boot and reset. Upload code -->
+<!-- TODO: Reference glitcher code -->
+<!-- TODO (HOME): Show example of glitch -->
 
 ## Differential power analysis
 
