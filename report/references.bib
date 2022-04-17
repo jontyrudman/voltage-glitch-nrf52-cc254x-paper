@@ -85,6 +85,23 @@
   file = {/home/jonty/Zotero/storage/JHLEIEPM/4.html}
 }
 
+@article{goodspeed16BitRootkit,
+  title = {A 16 {{Bit Rootkit}}, and {{Second Generation Zigbee Chips}}},
+  author = {Goodspeed, Travis},
+  pages = {71},
+  langid = {english},
+  file = {/home/jonty/Zotero/storage/AB7VJQDW/Goodspeed - A 16 Bit Rootkit, and Second Generation Zigbee Chi.pdf}
+}
+
+@article{goodspeedExtractingKeysSecond,
+  title = {Extracting {{Keys}} from {{Second Generation Zigbee Chips}}},
+  author = {Goodspeed, Travis},
+  pages = {3},
+  abstract = {First generation Zigbee chips were SPI slaves with no internal processing beyond cryptographic acceleration. Extracting a key was as simple as spying on the SPI transactions. The second generation chips, typified by the CC2430 from Texas Instruments and the EM250 from Ember, contain both a microcontroller and a radio, making the SPI sniffing attack all but irrelevant. Nevertheless, both chips are vulnerable to local key extraction. This paper describes techniques for doing so, focusing on the CC2430 as the EM250 has no protection against outside access. Recommendations are made for defending CC2430 firmware by using compiler directives to place sensitive information in flash memory, rather than in RAM. All Chipcon radios with 8051 cores released prior to the publication of this paper are expected to be vulnerable.},
+  langid = {english},
+  file = {/home/jonty/Zotero/storage/VGI6QDJM/Goodspeed - Extracting Keys from Second Generation Zigbee Chip.pdf}
+}
+
 @misc{grapsusCc254xSdcc,
   title = {Cc254x\_sdcc},
   author = {{Grapsus}},
@@ -198,6 +215,25 @@
   file = {/home/jonty/Zotero/storage/2IKMBRIM/blink_state.html}
 }
 
+@misc{rudmanCC2541ColdBoot,
+  title = {{{CC2541 Cold Boot Glitch GIAnT Script}}},
+  author = {Rudman, Jonathan},
+  journal = {GitLab},
+  abstract = {GitLab Community Edition},
+  howpublished = {https://git-teaching.cs.bham.ac.uk/mod-ug-proj-2021/jxr814/-/blob/master/cc2541/giant/example\_cc2541\_coldboot.py},
+  langid = {english},
+  file = {/home/jonty/Zotero/storage/WRPD8MWM/example_cc2541_coldboot.html}
+}
+
+@misc{rudmanCC2541CommandTriggeredGlitch,
+  title = {{{CC2541 Command-Triggered Glitch GIAnT Script}}},
+  author = {Rudman, Jonathan},
+  journal = {GitLab},
+  abstract = {GitLab Community Edition},
+  howpublished = {https://git-teaching.cs.bham.ac.uk/mod-ug-proj-2021/jxr814/-/blob/master/cc2541/giant/example\_cc2541.py},
+  langid = {english}
+}
+
 @misc{rudmanCC2541MinimumGlitch,
   title = {{{CC2541 Minimum Glitch Width Helper Script}}},
   author = {Rudman, Jonathan},
@@ -250,6 +286,23 @@
   abstract = {We investigate the susceptibility of the Texas Instruments SimpleLink platform microcontrollers to non-invasive physical attacks. We extracted the ROM bootloader of these microcontrollers and then analysed it using static analysis augmented with information obtained through emulation. We demonstrate a voltage fault injection attack targeting the ROM bootloader that allows to enable debug access on a previously locked microcontroller within seconds. Information provided by Texas Instruments reveals that one of our voltage fault injection attacks abuses functionality that is left over from the integrated circuit manufacturing process. The demonstrated physical attack allows an adversary to extract the firmware (i.e. intellectual property) and to bypass secure boot. Additionally, we mount side-channel attacks and differential fault analysis attacks on the hardware AES co-processor. To demonstrate the practical applicability of these attacks we extract the firmware from a Tesla Model 3 key fob.},
   langid = {english},
   file = {/home/jonty/Zotero/storage/QYZX8CQ8/Wouters et al. - On the susceptibility of Texas Instruments SimpleL.pdf}
+}
+
+@incollection{woutersSusceptibilityTexasInstruments2022,
+  title = {On the {{Susceptibility}} of {{Texas Instruments SimpleLink Platform Microcontrollers}} to {{Non-invasive Physical Attacks}}},
+  booktitle = {Constructive {{Side-Channel Analysis}} and {{Secure Design}}},
+  author = {Wouters, Lennert and Gierlichs, Benedikt and Preneel, Bart},
+  editor = {Balasch, Josep and O'Flynn, Colin},
+  year = {2022},
+  volume = {13211},
+  pages = {143--163},
+  publisher = {{Springer International Publishing}},
+  address = {{Cham}},
+  doi = {10.1007/978-3-030-99766-3_7},
+  abstract = {We investigate the susceptibility of the Texas Instruments SimpleLink platform microcontrollers to non-invasive physical attacks. We extracted the ROM bootloader of these microcontrollers and then analysed it using static analysis augmented with information obtained through emulation. We demonstrate a voltage fault injection attack targeting the ROM bootloader that allows to enable debug access on a previously locked microcontroller within seconds. Information provided by Texas Instruments reveals that one of our voltage fault injection attacks abuses functionality that is left over from the integrated circuit manufacturing process. The demonstrated physical attack allows an adversary to extract the firmware (i.e. intellectual property) and to bypass secure boot. Additionally, we mount side-channel attacks and differential fault analysis attacks on the hardware AES co-processor. To demonstrate the practical applicability of these attacks we extract the firmware from a Tesla Model 3 key fob.},
+  isbn = {978-3-030-99765-6 978-3-030-99766-3},
+  langid = {english},
+  file = {/home/jonty/Zotero/storage/47W4D34X/Wouters et al. - 2022 - On the Susceptibility of Texas Instruments SimpleL.pdf}
 }
 
 

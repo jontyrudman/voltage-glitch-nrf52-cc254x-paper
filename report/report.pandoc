@@ -9,11 +9,31 @@ date: >
 abstract: >
   This is an abstract.
   Spoil the ending; say how you haven't managed to glitch the CC2541 with a crowbar glitch on the CPU. TODO.
-csl: harvard-cite-them-right.csl
 bibliography: references.bib
+csl: ieee.csl
+header-includes: >
+  \linespread{1.2}
+  \usepackage{xcolor}
+  \lstset{
+      basicstyle=\ttfamily,
+      numbers=left,
+      numberstyle=\footnotesize,
+      numbersep=5pt,
+      showspaces=false,
+      showstringspaces=false,
+      showtabs=false,
+      tabsize=2,
+      captionpos=b,
+      breaklines=true,
+      breakatwhitespace=true,
+      breakautoindent=true,
+      linewidth=\textwidth
+  }
 ---
 
 \tableofcontents
+
+<!-- TODO: Move some of the caption text out to paragraphs and reference the figures with it. -->
 
 # Introduction
 
@@ -298,50 +318,124 @@ The following experiments will be attempted:
 
 Differential power analysis has been placed last in the list of experiments due to its time-consuming nature; thousands of traces need to be recorded from the oscilloscope, which also must be interfaced with the general purpose computer.
 
+<!-- TODO: Describe setup with cc-tool, incl. --log and other commands -->
+
 ## Finding a suitable glitch width
 
 The reasoning behind finding a suitable minimum glitch width is outlined in section \ref{section_nrf52832_suitable_width}.
-Much like the code written for finding the minimum glitch width for the nRF52832, a test application was written to toggle a pin on the CC2541 at $5ms$ intervals (@rudmanCC2541BlinkPin), and a script was created for using the GIAnT board to glitch the CC2541 at an increasing offset (@rudmanCC2541MinimumGlitch).
+Much like the code written for finding the minimum glitch width for the nRF52832, a test application was written to toggle a pin on the CC2541 at $5ms$ intervals @rudmanCC2541BlinkPin, and a script was created for using the GIAnT board to glitch the CC2541 at an increasing offset @rudmanCC2541MinimumGlitch.
 The pin toggling application is configured to toggle pin 0.2 on the CC2541, which is connected to a header pin on its development board labelled "state".
+The first two pin toggles are only $1ms$ apart to show more clearly when the application starts.
 Normal operation of the pin toggling application is shown in figure \ref{img_cc2541_blink_no_glitch}.
 
-![TODO\label{img_cc2541_blink_no_glitch}](res/nrf52832_successful.png){width=400px}
+![
+The CC2541 pin toggling application without a glitch. Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
+\label{img_cc2541_blink_no_glitch}
+](res/cc2541_blink_no_glitch.png){width=400px}
 
-Due to the use of `NOP`s in the `delay_ms` function written by @grapsusCc254xSdcc for the CC2541 and used by the application, most offsets will not show a discernible glitch outcome, unlike for the nRF52832.
-This means that, unless the glitch occurs within <!-- TODO: How long? --> before the "state" pin toggles, the trace will continue to look like the application is running as expected, because only a few `NOP`s are skipped.
-The most that will happen is that the next pin toggle may come a few <!-- TODO: How long? --> sooner, which isn't very visible.
-Glitching within <!-- TODO: How long? --> before the "state" pin toggles does however show a successful glitch in the application, seen in figure \ref{img_cc2541_blink_glitch}.
+Due to the use of `NOP`s in the `delay_ms` function written by Grapsus @grapsusCc254xSdcc for the CC2541 and used by the application, most offsets will not show a discernible glitch outcome, unlike for the nRF52832.
+This means that, unless the glitch occurs within a single clock cycle, or about $31ns$, before the "state" pin toggles, the trace will continue to look like the application is running as expected, because only a `NOP` or two are skipped.
+The most that will happen is that the next pin toggle may come a couple of cycles sooner, which isn't very visible.
+Glitching within a cycle or two before the "state" pin toggles does however show a successful glitch in the application, seen in figure \ref{img_cc2541_blink_glitch}.
 The smallest glitch width for a successful glitch to the pin toggling application was $50ns$.
 $80ns$ is the maximum glitch width before the microcontroller resets, as seen in figure \ref{img_cc2541_blink_reset}, where a $90ns$ width was used.
-
-![TODO\label{img_cc2541_blink_glitch}](res/nrf52832_successful.png){width=400px}
-
-![TODO\label{img_cc2541_blink_reset}](res/nrf52832_successful.png){width=400px}
+The initialisation pattern is visible in trace 1 (DCOUPL) in figure \ref{img_cc2541_blink_reset} and figure \ref{img_cc2541_blink_no_glitch}, which shows the same pattern when powered on.
 
 The reason there are no success rates listed is because the success of each glitch can't easily be determined for the test application (pin toggling) and there was no success with a CRP bypass to be measured.
 
-## Finding a suitable glitch offset
+![
+The CC2541 pin toggling application with a $50ns$ crowbar glitch at trigger _T_, causing the pin toggle instruction to be skipped and the STATE pin remains high for another $5ms$.
+Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE on the development board (the pin being toggled).
+\label{img_cc2541_blink_glitch}
+](res/cc2541_blink_glitch.png){width=400px}
 
-<!-- TODO: Speculation about what you might be able to glitch, before looking at potential critical sections on the oscilloscope. -->
+![
+The CC2541 pin toggling application with a $90ns$ crowbar glitch at trigger _T_, causing a reset, visible in the pattern in trace 1 and the initial $1ms$ pin toggle in trace 3, at the start of the application.
+Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
+\label{img_cc2541_blink_reset}
+](res/cc2541_blink_reset.png){width=400px}
+
+## Finding a suitable glitch offset\label{section_cc2541_suitable_offset}
+
 Generally speaking, potential critical sections for bypassing CRP are found before the application starts running.
 This is because, even without boot ROM, any CRP check or movement of CRP data to the CPU is an initialisation step, which would need to occur before normal CPU execution and potential debug connection.
 
-<!-- TODO: SPA -->
-<!-- TODO: Critical section hunting and speculation, based on nRF52 findings -->
-<!-- TODO: Potential critical section screenshots for CC2541 -->
-<!-- TODO: Talk about how cold boot glitching probably won't work and why -->
+In order to identify these potential critical sections and infer more about how the CC2541 works, an oscilloscope was connected to measure the voltages of DCOUPL, VDD, RESET_N and the state pin used by the pin toggling application.
+The voltage traces should be analysed during the most likely areas in which a CRP check might exist:
+
+- powering on the CC2541 (cold boot, figure \ref{img_cc2541_blink_no_glitch}) or after reset;
+- debugging communication using `cc-tool` from the general purpose computer with the CC Debugger (figure \ref{img_cc2541_debugging}).
+
+![
+Using `cc-tool` to read basic info about the CC2541: what its debug status is and its name and flags.
+Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
+\label{img_cc2541_debugging}
+](res/cc2541_basic_info_debug.png){width=400px}
+
+In figure \ref{img_cc2541_debugging}, it can be seen that before and after every debugging command is sent to the CC2541 by the CC Debugger, RESET_N is held low while two falling edge transitions are forced on Debug Clock.
+It can be assumed that after every reset out of debug mode, the CC2541 MCU reinitialises and CRP data is moved from flash again, if it is read by the CPU at all.
+This is a fair assumption because setting the debug lock with `cc-tool --lock debug` enables CRP for all subsequent debug commands, as seen below.
+
+```
+$ cc-tool -r out.bin
+  Programmer: CC Debugger
+  Target: CC2540
+  Target is locked.
+  No operations allowed on locked target without erasing
+```
+
+In order to check whether a glitch has been successful at bypassing CRP, a non-error response from `cc-tool` which does not contain "Target is locked" is used as the benchmark in the GIAnT scripts [@rudmanCC2541CommandTriggeredGlitch; @rudmanCC2541ColdBoot].
+Unless the area of memory containing the debug lock bit is permanently changed---something not likely with a crowbar glitch on the CPU---any outcome from a glitch before `cc-tool` is used will be reverted by the reset before each debug command, which includes the check to see whether the glitch has been successful.
+Therefore any glitch on a cold boot is unlikely to bypass CRP in a meaningful way, because checking the debug lock bit will reset the chip and re-enable the CRP.
+
+The result of this is that the best chance of a successful glitch on CRP is during the time from the reset before the debug command is sent to the CC2541, until the debug command is processed by the CC2541.
+This is the period of time between trigger _T_ on figure \ref{img_cc2541_debugging} and $8ms$ later.
 
 ## Glitch attempts
 
-<!-- TODO: Detail initial glitch attempts on potential critical sections, and outcomes. -->
-<!-- TODO: Talk about both cold boot and reset. Upload code -->
-<!-- TODO: Reference glitcher code -->
-<!-- TODO (HOME): Show example of glitch -->
+Before carrying out differential power analysis (DPA), glitch attempts were made across the offset space outlined in section \ref{section_cc2541_suitable_offset}, cold boot and during and immediately after a debugging-triggered reset.
+Glitch attempts were made using GIAnT interface scripts on both reset during debugging command execution @rudmanCC2541CommandTriggeredGlitch and cold boot @rudmanCC2541ColdBoot.
+Glitching on a cold boot and not during the reset and debug communication was never likely to produce a CRP bypass, as described in section \ref{section_cc2541_suitable_offset}, but was carried out as a fallback after glitching during debug communication didn't produce a CRP bypass.
+<!-- TODO: Reference glitcher code for resets and note the parameters -->
+<!-- TODO: Reference glitcher code for cold boot and note the parameters -->
+
+### Outcome: Corrupted debug status
+
+For all of the offsets at which a glitch was applied, no CRP bypass was achieved.
+There were two times at which the microcontroller didn't reset and there was no "Target is locked" message, but neither of these were a CRP bypass.
+
+The first time time there was no "Target is locked" message was when the glitch was applied during debug communications; the `cc-tool` logs show that glitches during debug communications often cause the response or the processing of a request to be corrupted.
+Notice, in the log message in appendix \ref{appendix_corrupted_debug_status}, the following lines:
+
+```
+[21.02 13:29:34:99695] programmer, debug status, 00h
+[21.02 13:29:34:99695] programmer, halt failed
+```
+
+See how the debug status returned is `00h` and not `26h` (CRP enabled) or `22h` (CRP disabled).
+When glitching around the time of this USB read, the value sent back to the CC Debugger can be corrupted and be any other value.
+This isn't helpful, because even if it is corrupted to `22h`, that doesn't mean that CRP has actually been disabled for subsequent flash reads, only that the message has been corrupted.
+
+
+### Outcome: Erased flash
+
+<!-- TODO: Talk about the glitch that erases the flash -->
+
+![
+The CC2541 glitch during debug communication which was initially thought to be successful; CRP was only disabled at the expense of erasing the flash, which defeats the purpose of the attack.
+Notice how trace 3 doesn't start toggling again because the application has been wiped.
+Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
+\label{img_cc2541_glitch_success}
+](res/cc2541_glitch_success.png){width=500px}
+
+<!-- TODO: Talk about no-reset cc-tool and why it doesn't work. Resetting not optional; the reset with two falling edges is required to put into debug mode. -->
 
 ## Differential power analysis
 
+<!-- TODO: Define DPA -->
 <!-- TODO: Add a section on interfacing with the oscilloscope -->
 <!-- TODO: Show results of DPA, why they don't really help -->
+<!-- TODO: Maybe don't even do this section, or just do a best efforts thing -->
 
 ## Observations
 
@@ -349,19 +443,33 @@ This is because, even without boot ROM, any CRP check or movement of CRP data to
 <!-- TODO: Maybe one reason for the more featureless traces is because DCOUPL is for the whole MCU and not the CPU? -->
 <!-- TODO: Things I wish I had done or known, to speed up the process: boot rom stuff and forgetting to remove the capacitor -->
 
+## Areas of difficulty
+
 ## Future work
 
-<!-- TODO: Talk about what you'd like to do for the CC2541 in the future:
+If there were more time for this project, it would have extended to include the following work:
 
-- If I had more time, I would have worked on compiling a more conclusive differential power analysis.
-- I also would have tried glitching the main voltage for the CC2541 to see if I could set bits.
-- David also brought to my attention an old vulnerability with the CC2430, to see whether it still applied to the CC2541, which I would have also liked to investigate.
-- I'd have also liked to work on improving ease of use of voltage glitching, primarily by extending GIAnT and adding to the documentation.
--->
+- Using a faster oscilloscope to collect more traces in order to produce more accurate DPA results on the CC2541.
+- Building on the knowledge gained about how the CC2541 works to attempt to glitch VDD on the CC2541, undervolting or overvolting---not using a crowbar attack---to set the debug lock bit.
+- Checking whether the CC2541 has the same vulnerability where the RAM isn't erased with the flash, as demonstrated by Goodspeed for the CC2430 @goodspeedExtractingKeysSecond.
+- Improving the ease of use of voltage glitching by refactoring GIAnT into a Python package and adding to the currently sparse documentation.
 
 # Evaluation
 
 ## Comparing outcomes to success criteria
+
+The crowbar attack on nRF52 microcontrollers shown by LimitedResults @limitedresultsNRF52DebugResurrection2020 and Roth @rothHowAppleAirTags2021 was successfully repeated for the nRF52832 on a cheaply available development board using both the Pico Debug'n'Dump and GIAnT.
+
+This project has shown that neither the CC2541, nor the family of SoCs of which it is a member, are susceptible to crowbar voltage glitches to bypass CRP without erasing the flash memory.
+In addition, I have learned many new skills throughout:
+
+- Using an oscilloscope for both simple power analysis and voltage trace extraction over USB.
+- Deeper understanding of how SoCs and microcontrollers work and their architectures, especially for the nRF52 and CC253x/4x product families.
+- Practical experience of voltage glitching using FPGA-based solutions and less real-time microcontroller-based solutions.
+- Using all of the software tooling required for the above devices.
+
+Methods for making crowbar attacks and other voltage glitches easier have also been outlined. <!-- TODO: No they haven't, do this -->
+
 
 <!-- TODO: Write section. Use below as a template -->
 
@@ -369,8 +477,6 @@ What I'd have done differently.
 For some things, it's hard to say, because I've learned a lot for the first time in this project.
 Knowing what I know now, it would have been better to identify whether there was any bootloader code I could have targeted before blindly glitching potential critical sections (although this glitching didn't take long).
 I would also have attempted DPA earlier on, but I did not know what the knowledge barriers for communicating with the oscilloscope would be, so it could have really slowed down the project if I had.
-
-I'd also have set my success criteria from the start to be more focussed on learning, rather than trying to successfully glitch a chip I had very little information about at the time.
 
 ## Conclusion
 
@@ -386,3 +492,40 @@ If you know that you'll be glitching the bootloader, can use a CPU crowbar and d
 
 # References
 
+\vspace{0.5cm}
+
+<div id="refs"></div>
+
+\appendix
+
+# `cc-tool` logs
+
+## Corrupted debug status\label{appendix_corrupted_debug_status}
+
+```
+Command '['cc-tool', '-i', '--log']' returned non-zero exit status 1.
+[21.02 13:29:34:99664] main, cc-tool 0.26
+[21.02 13:29:34:99664] main, command line: cc-tool -i --log 
+[21.02 13:29:34:99672] usb, open device, VID: 0451h, PID: 16A2h
+[21.02 13:29:34:99672] usb, set configuration 1
+[21.02 13:29:34:99680] usb, claim interface 0
+[21.02 13:29:34:99682] usb, get string descriptor 2, data: CC Debugger
+[21.02 13:29:34:99682] programmer, request device state
+[21.02 13:29:34:99682] usb, control read, request_type: C0h, request: C0h, value: 0000h, index: 0000h, count: 8
+[21.02 13:29:34:99682] usb, control read, data: 40 25 CC 05 44 00 01 00
+[21.02 13:29:34:99682] device, name: CC Debugger, ID: 0100, version: 05CCh, revision: 0044h
+[21.02 13:29:34:99682] programmer, set debug interface speed 0
+[21.02 13:29:34:99682] usb, control write, request_type: 40h, request: CFh, value: 0001h, index: 0000h, count: 0
+[21.02 13:29:34:99682] programmer, connect target
+[21.02 13:29:34:99682] programmer, enter debug mode
+[21.02 13:29:34:99682] usb, control write, request_type: 40h, request: C5h, value: 0000h, index: 0000h, count: 0
+[21.02 13:29:34:99683] usb, control write, request_type: 40h, request: C8h, value: 0001h, index: 0000h, count: 48
+[21.02 13:29:34:99683] usb, control write, data: 43 43 32 35 34 30 20 20 20 20 20 20 20 20 20 20 44 49 44 3A 20 30 31 30 30 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+[21.02 13:29:34:99684] programmer, reset target, debug mode: 1
+[21.02 13:29:34:99684] usb, control write, request_type: 40h, request: C9h, value: 0000h, index: 0001h, count: 0
+[21.02 13:29:34:99694] programmer, read debug status
+[21.02 13:29:34:99694] usb, bulk write, count: 2, data: 1F 34
+[21.02 13:29:34:99695] usb, bulk read, count 1: data: 00
+[21.02 13:29:34:99695] programmer, debug status, 00h
+[21.02 13:29:34:99695] programmer, halt failed
+```
