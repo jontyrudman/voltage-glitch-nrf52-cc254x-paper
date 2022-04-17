@@ -34,6 +34,7 @@ header-includes: >
 \tableofcontents
 
 <!-- TODO: Move some of the caption text out to paragraphs and reference the figures with it. -->
+<!-- TODO: Finish converting citation style to IEEE. -->
 
 # Introduction
 
@@ -395,14 +396,17 @@ This is the period of time between trigger _T_ on figure \ref{img_cc2541_debuggi
 
 Before carrying out differential power analysis (DPA), glitch attempts were made across the offset space outlined in section \ref{section_cc2541_suitable_offset}, cold boot and during and immediately after a debugging-triggered reset.
 Glitch attempts were made using GIAnT interface scripts on both reset during debugging command execution @rudmanCC2541CommandTriggeredGlitch and cold boot @rudmanCC2541ColdBoot.
-Glitching on a cold boot and not during the reset and debug communication was never likely to produce a CRP bypass, as described in section \ref{section_cc2541_suitable_offset}, but was carried out as a fallback after glitching during debug communication didn't produce a CRP bypass.
+Glitching on a cold boot---not during the reset and subsequent debug communication---was never likely to produce a CRP bypass, as described in section \ref{section_cc2541_suitable_offset}, but was carried out as a fallback after glitching during debug communication didn't produce a CRP bypass.
 <!-- TODO: Reference glitcher code for resets and note the parameters -->
 <!-- TODO: Reference glitcher code for cold boot and note the parameters -->
 
-### Outcome: Corrupted debug status
-
 For all of the offsets at which a glitch was applied, no CRP bypass was achieved.
 There were two times at which the microcontroller didn't reset and there was no "Target is locked" message, but neither of these were a CRP bypass.
+Neither of these outcomes happened on a cold boot glitch described occurred on a cold boot glitch.
+
+<!-- TODO: Talk about no-reset cc-tool and why it doesn't work. Resetting not optional; the reset with two falling edges is required to put into debug mode. -->
+
+### Outcome: Corrupted debug status
 
 The first time time there was no "Target is locked" message was when the glitch was applied during debug communications; the `cc-tool` logs show that glitches during debug communications often cause the response or the processing of a request to be corrupted.
 Notice, in the log message in appendix \ref{appendix_corrupted_debug_status}, the following lines:
@@ -416,19 +420,24 @@ See how the debug status returned is `00h` and not `26h` (CRP enabled) or `22h` 
 When glitching around the time of this USB read, the value sent back to the CC Debugger can be corrupted and be any other value.
 This isn't helpful, because even if it is corrupted to `22h`, that doesn't mean that CRP has actually been disabled for subsequent flash reads, only that the message has been corrupted.
 
-
 ### Outcome: Erased flash
 
-<!-- TODO: Talk about the glitch that erases the flash -->
+The second time `cc-tool` did not print a "Target is locked" message after glitching was also when the glitch was applied during debug communications, specifically around the section of activity on trace 4 (Debug Data) and marked by trigger _T_ in figure \ref{img_cc2541_glitch_success}.
+CRP was only disabled at the expense of erasing the flash, which defeats the purpose of the attack because the flash containing the original application can't then be dumped.
+Figure \ref{img_cc2541_glitch_success} shows that after the second time RESET_N is pulled low, the pin toggling application doesn't start again.
+Future power cycles also don't restart the pin toggling application and the device remains unlocked, and any dump of the flash produces an empty binary.
+
+There are two possible reasons that this happened.
+The first is that repeated glitching for long enough might corrupt the flash, causing it to be wiped.
+This isn't likely because this outcome only seems to happen during handling of debug commands.
+The second, more likely reason is that a debug command gets corrupted and interpreted as an erase command, or that erasing is the default operation when receiving such a corrupted command.
 
 ![
-The CC2541 glitch during debug communication which was initially thought to be successful; CRP was only disabled at the expense of erasing the flash, which defeats the purpose of the attack.
+The CC2541 glitch during debug communication which was initially thought to be successful.
 Notice how trace 3 doesn't start toggling again because the application has been wiped.
 Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
 \label{img_cc2541_glitch_success}
 ](res/cc2541_glitch_success.png){width=500px}
-
-<!-- TODO: Talk about no-reset cc-tool and why it doesn't work. Resetting not optional; the reset with two falling edges is required to put into debug mode. -->
 
 ## Differential power analysis
 
@@ -441,9 +450,35 @@ Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE
 
 <!-- TODO: Doesn't have an embedded bootloader, but neither does the nRF52832, so why does this mean the crowbar glitch isn't possible? -->
 <!-- TODO: Maybe one reason for the more featureless traces is because DCOUPL is for the whole MCU and not the CPU? -->
-<!-- TODO: Things I wish I had done or known, to speed up the process: boot rom stuff and forgetting to remove the capacitor -->
 
 ## Areas of difficulty
+
+A number of time-consuming areas of difficulty presented themselves during this project, but many were specific to the analysis of the CC2541.
+The following were rectified before conclusions were drawn in any of the previous sections.
+
+During initial analysis, removing the decoupling capacitor was seen as an optional step, which it can be if a voltage glitch is found without needing to study voltage traces more deeply.
+The problem with this was that removing the decoupling capacitor was postponed until it was forgotten, and the first traces recorded for differential power analysis were featureless due to the capacitor's damping effect.
+Many steps had to be repeated after removing this capacitor, and its removal made power analysis much easier. <!-- TODO: Show an example of DCOUPL with capacitor still in place and compare -->
+
+Removal of the original wire soldered to DCOUPL and then its decoupling capacitor put too much strain and heat onto the solder pad used, which consequently lifted off the PCB.
+The jumper wire is now soldered to a much smaller and less disposable contact: the DCOUPL leg on the side of the chip itself.
+There is no backup for this, but at least the original decision to solder onto the PCB rather than directly onto the pin left a fallback for when the pad came off.
+
+A lot of time was spent trying to glitch some kind of bootloader, which the CC2541 didn't have, just like the nRF52832.
+It would have been a better idea to reason about causing a CRP bypass by targeting a transfer of CRP data, as done for the nRF52832, because there wasn't likely to be any logic executed by the CPU which could be glitched to cause a CRP bypass, because there was no bootloader embedded on the device.
+
+For the majority of the time spent applying glitches to the CC2541, the glitch width was far too high and was constantly causing either a reset or a full CPU failure until the next reset.
+This was caused by an initial misunderstanding of how long the glitch was, and then mistaking a glitch-induced reset for a successful glitch, at which point the glitch width stopped being re-evaluated as an independent variable.
+
+After seeing that every `cc-tool` command causes a reset before and after the CC2541 handles the debug operations, much time was spent on removing these resets, under the incorrect assumption that they were optional.
+This was, of course, not true and removing the resets and re-compiling `cc-tool` caused complete failure of debug communication.
+The user guide makes it clear that putting the CC2541 into debug mode requires RESET_N to be held low while applying two falling edge transitions on the Debug Clock pin, but `cc-tool` was stubbornly modified nevertheless.
+
+Differential power analysis is very difficult to carry out using the oscilloscope used throughout this project, the Rigol DS1074Z Plus.
+DPA requires, ideally, thousands of recordings of power traces, so that averaging them doesn't completely remove any features from the resulting traces.
+The DS1074Z oscilloscope is slow at transferring points from power traces over USB, resulting in at least a few minutes to transfer a single trace of 3 million points, which makes DPA prohibitively time-expensive.
+
+All of these time-consuming tasks and mistakes were learning experiences and now it is much easier to recognise various patterns in oscilloscope traces, use a much more rigorous methodology and avoid systematic error.
 
 ## Future work
 
@@ -468,10 +503,10 @@ In addition, I have learned many new skills throughout:
 - Practical experience of voltage glitching using FPGA-based solutions and less real-time microcontroller-based solutions.
 - Using all of the software tooling required for the above devices.
 
-Methods for making crowbar attacks and other voltage glitches easier have also been outlined. <!-- TODO: No they haven't, do this -->
+Methods for making crowbar attacks and other voltage glitches easier have also been outlined. <!-- TODO: No they haven't, do this in Observations and an Evaluation section before this -->
 
 
-<!-- TODO: Write section. Use below as a template -->
+<!-- TODO: Finish section. Use below as a template -->
 
 What I'd have done differently.
 For some things, it's hard to say, because I've learned a lot for the first time in this project.
@@ -480,6 +515,7 @@ I would also have attempted DPA earlier on, but I did not know what the knowledg
 
 ## Conclusion
 
+<!-- Talk about chips which are much more likely to be susceptible to this: embedded bootloader executed by CPU -->
 <!-- TODO: Write conclusion. Use below as a template -->
 
 I believe the crowbar glitch is not possible on the CC2541 because there does not seem to be a firmware bootloader in protected memory that can be affected by glitching the CPU.
@@ -529,3 +565,5 @@ Command '['cc-tool', '-i', '--log']' returned non-zero exit status 1.
 [21.02 13:29:34:99695] programmer, debug status, 00h
 [21.02 13:29:34:99695] programmer, halt failed
 ```
+
+<!-- TODO: Add more logs -->
