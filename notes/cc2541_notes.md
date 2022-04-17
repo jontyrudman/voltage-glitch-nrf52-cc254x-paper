@@ -608,3 +608,16 @@ After more investigation I found that the same kind of range, 50-100ns, works on
 All this time I've been trying to glitch and just resetting the chip!!!
 
 Trying again.
+
+SUCCESS!!!
+Looks like I can still read the info page on subsequent commands too.
+`w = 60, o = 7993000, repeat = 2`
+
+It can read the info page even after power cycle!
+Let's try again.
+
+Occasionally the application breaks too, maybe I'm corrupting flash anyway?
+Maybe read the flash and see.
+
+Looking at the scope, it's really hard to hit because the last debug communication jitters a **lot**.
+To repeat it, I'll probably need to hone in on the critical section and repeat a lot.
