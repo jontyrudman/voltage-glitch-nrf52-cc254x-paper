@@ -2,17 +2,21 @@
 This example shows how to glitch the loading of APPROTECT from the UICR (in flash)
 to bypass CRP on the nRF52832.
 Based on example_lpc1343.py in this repo.
+
 For this to work, the following connections are needed:
+
 - Solder a wire to DEC1 on the nRF and connect it to T1 on the GIAnT
   (T1 shorts to ground when the fault is injected).
 - It may be necessary to remove the capacitor on DEC1.
 - Connect VCC on the nRF to DAC output on the GIAnT, and GND to GND.
 - Connect SWDIO and SWDCLK on the nRF to those pins on an ST-LINK or
   similar.
+
 **IMPORTANT NOTE**: Make sure you have
 https://github.com/openocd-org/openocd/blob/master/tcl/target/nrf52.cfg
 in the directory you're running this from.
 You'll need OpenOCD installed for the CRP check command to work.
+
 Example success:
     Attempting to glitch...
     w = 180, o = 1071000, repeat = 1
@@ -36,6 +40,7 @@ import subprocess
 def check_protected():
     """
     Returns True if the uc is still protected, or False if it isn't.
+
     Attempts to dump the firmware to nrf52_dump.bin and then reads the
     first four bytes to check whether it is a non-empty dump, in which
     case it will return False.
@@ -62,10 +67,12 @@ def check_protected():
 def main():
     """
     Iterate over the parameter search space and inject a voltage glitch.
+
     The uc is reset before every voltage glitch by disabling and then enabling
     the DAC.
     The trigger (start of the glitch offset period) is the DAC being enabled,
     so the glitch is triggered every time the uc starts receiving power.
+
     `enable DAC -> wait for the offset period -> short T1 to GND`
     """
     logging.basicConfig(level = logging.INFO)
@@ -84,13 +91,13 @@ def main():
     )
     
     # Offsets
-    offset_start = 1050000
-    offset_end = 1309000
+    offset_start = 1027000
+    offset_end = 1100000
     offset_step = 1000
     
     # Width range
-    w_start = 100
-    w_end = 250
+    w_start = 50
+    w_end = 200
     w_step = 10
     
     # Repeat each attempt how many times?
