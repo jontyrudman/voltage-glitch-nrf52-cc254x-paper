@@ -62,6 +62,8 @@ Because:
 
 ## Related work
 
+<!-- TODO: Introduce this section a bit more, "over the years" etc. -->
+
 @rothHowAppleAirTags2021 has shown how the nRF52832, used in Apple AirTags, can be glitched to skip its CRP check.
 Roth also cites earlier work from a blog, @limitedresultsNRF52DebugResurrection2020, which focuses on a similar system-on-a-chip (SoC), the nRF52840, and presents information from the nRF52 family in the context of voltage glitching and CRP.
 Replicating Roth's and LimitedResults' work is the first experiment of this project and was used as a framework for learning about many aspects of voltage glitching for the first time before moving onto a novel experiment: applying a similar glitch to the Texas Instruments CC2541.
@@ -167,9 +169,9 @@ The pins on the nRF52832 development board were too narrow and close together fo
 Glitching the CPU voltage regulator decoupling circuit allows an attacker to specifically target the CPU, rather than the full system, which prevents the glitch being "absorbed" by other circuitry.
 The decoupling capacitor was also removed from the DEC1, to prevent damping of the glitch and the traces when reading the oscilloscope. <!-- Check accuracy of this -->
 
-## Using Pico Debug'n'Dump
+## Using Pico Debug'n'Dump\label{section_nrf52832_debugndump}
 
-The video demonstrating the nRF52832 glitch, uploaded by @rothHowAppleAirTags2021, introduces the Pico Debug'n'Dump, a device Roth created to make crowbar voltage glitching cheaper and easier.
+The video demonstrating the nRF52832 glitch, uploaded by @rothHowAppleAirTags2021, introduces the Pico Debug'n'Dump, a \$25 commercially available device Roth created to make crowbar voltage glitching cheaper and easier.
 
 The glitching application, published by @rothAirtagglitcher2021 on GitHub, was flashed to the Debug'n'Dump by the general purpose computer.
 Below is a table of the wiring setup.
@@ -192,14 +194,15 @@ Returning to the Debug'n'Dump---after succeeding with GIAnT---and removing its r
 
 ## Using GIAnT
 
-GIAnT, an implementation analysis toolkit based around an FPGA and created by @oswaldGiantrevBGIAnTFault, was used as the glitch generator for attacking the nRF52832 after experimenting with the Pico Debug'n'Dump.
+GIAnT, an implementation analysis toolkit based around an FPGA board and created by @oswaldGiantrevBGIAnTFault, was used as the glitch generator for attacking the nRF52832 after experimenting with the Pico Debug'n'Dump.
+Boards used by GIAnT are custom and cannot currently be found commercially; the one used in this experiment extends the ZTEX USB-FPGA Module 2.04, which costs €129 alone. <!-- TODO: Link or footnote? -->
 The GIAnT board used for this experiment didn't originally have a transistor soldered to it (but had the solder pads available) for the purposes of a crowbar circuit, so a MOSFET had to be added to the trace leading to pin T1, along with the capability to use it in the FPGA bytestream.
 
 Wiring the nRF52832 to the GIAnT is similar to the Pico Debug'n'Dump configuration: VDD on the MCU is plugged into the DAC output on the GIAnT and DEC1 is wired to T1 on the GIAnT for the CPU crowbar.
 
 After flashing the firmware to the GIAnT development board, a Python library is used to interact with the board over USB and configure DAC voltage and the glitching parameters: the pin address for triggering the glitch, the glitch offset and the glitch width.
 
-The application, @NRF52832FullGIAnT, configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch---that is, a glitch causing the bypass of CRP.
+The application, @rudmanNRF52832FullGIAnT, configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch---that is, a glitch causing the bypass of CRP.
 The initial offset is configured to be immediately before the critical section (see "Finding a suitable glitch offset").
 Once there is a glitch success---defined as the firmware read command being allowed by the MCU---the application on the controlling computer stops running, and a dump of the nRF52832's firmware is left in the working directory.
 
@@ -229,12 +232,12 @@ At widths as large as $140ns$, the CPU would permanently fail until the next res
 
 ![The pin toggling application being faulted, with a $140ns$ glitch applied to the CPU core at trigger _T_, causing the CPU to permanently fail until next reset. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_permafail}](res/nrf52832_blink_permafail.png){width=400px}
 
-Later investigation has found that a width of $50ns$ is typically too short to reliably fault the NVMC activity and therefore the CRP, and glitch widths as large as $180ns$ do not cause the CPU to permanently fail until reset when targeting the critical section. <!-- Why? -->
+Later investigation has found that a width of $50ns$ is typically too short to reliably fault the NVMC activity and therefore the CRP, and glitch widths as large as $180ns$ do not cause the CPU to permanently fail until reset when targeting the critical section.
 This is why it is important to cycle through a number of glitch widths when approaching a critical section.
 
-The widths for 399 successful glitches were recorded and the proportion of glitch successes for each glitch width is shown in figure \ref{img_nrf52832_offset_vs_success}.
-A successful glitch is defined as a glitch on the NVMC activity outlined in section \ref{section_nrf52832_suitable_offset} which bypasses CRP and allows the firmware to be dumped.
-Figure \ref{img_nrf52832_offset_vs_success} shows that the optimal glitch width is between $80ns$ and $120ns$.
+After applying a successful glitch (see section \ref{section_nrf52832_observations}), widths for 399 successful glitches were recorded and the proportion of glitch successes for each glitch width is shown in figure \ref{img_nrf52832_offset_vs_success}.
+A successful glitch is a glitch on the NVMC activity outlined in section \ref{section_nrf52832_suitable_offset} which bypasses CRP and allows the firmware to be dumped.
+Figure \ref{img_nrf52832_width_vs_success} shows that the optimal glitch width is between $80ns$ and $120ns$.
 It's important, for future glitch campaigns on the nRF52832 CPU core using a crowbar technique, that the glitch width range used is reduced to this identified range because it can reduce the time needed for a successful glitch.
 Although there have been successes outside of the $80-120ns$ range, successful glitches can still be made more likely in the $80-120ns$ range by repeating with the same parameters, which is especially useful at counteracting jitter.
 
@@ -255,7 +258,7 @@ The noise present in figures \ref{img_nrf52832_crit_section_no_zoom} and \ref{im
 
 ![Zoomed-in version of the traces in figure \ref{img_nrf52832_crit_section_no_zoom}. Critical section (NVMC activity) highlighted in red box.\label{img_nrf52832_crit_section_zoom}](res/nrf52832_crit_section_zoom_highlight.png){width=400px}
 
-![Screenshot of the nRF52840 critical section, captured by @limitedresultsNRF52DebugResurrection2020. Trace 2 (light blue) is the CPU core voltage at DEC1 and trace 4 (dark blue) is the system power voltage at DEC4. Compare with figure \ref{img_nrf52832_crit_section_zoom}.\label{img_nrf52832_limitedresults_crit_section}](res/nrf52832_limitedresults_crit_section.png){width=400px}
+![Screenshot of the nRF52840 critical section, captured by LimitedResults @limitedresultsNRF52DebugResurrection2020. Trace 2 (light blue) is the CPU core voltage at DEC1 and trace 4 (dark blue) is the system power voltage at DEC4. Compare with figure \ref{img_nrf52832_crit_section_zoom}.\label{img_nrf52832_limitedresults_crit_section}](res/nrf52832_limitedresults_crit_section.png){width=400px}
 
 This critical section lasts for about $2\mu s$, although glitches are usually successful in the later part of the critical section.
 To account for jitter---the changing location of the critical section between power cycles---the glitch offset can be said to start at $1029\mu s$ after supplying power to the nRF52832, and increase by $1\mu s$ until $1044\mu s$.
@@ -263,12 +266,25 @@ The offsets for 399 successful glitches were recorded and the proportion of glit
 
 ![Glitch offset vs. proportion of successes (out of 399 successes) for the nRF52832.\label{img_nrf52832_offset_vs_success}](res/nrf52832_offset_vs_success.png){width=400px}
 
-## Observations
+## Observations\label{section_nrf52832_observations}
 
-![A successful glitch on the nRF52832. Trace 1 (yellow) is the CPU core voltage through DEC1 and trace 2 (blue) is the system voltage. Compare this to figure \ref{img_nrf52832_crit_section_zoom}; notice how the CPU core voltage doesn't drop after the glitch.\label{img_nrf52832_successful}](res/nrf52832_successful.png){width=400px}
+A script @rudmanNRF52832FullGIAnT was written to control the GIAnT board using the parameters discussed in sections \ref{section_cc2541_suitable_width} and \ref{section_nrf52832_suitable_offset}.
+The finalised code for this script iterates over an offset range of $1027\mu s - 1100\mu s$ at an interval of $1\mu s$ and over a width range of $50ns - 200ns$ at an interval of $10ns$.
+The reason for the large offset range is that over the course of a few months, the critical section has been at varying offsets; successful glitches months apart have occurred at offsets of $1029\mu s - 1045\mu s$, $1057\mu s$ during project demonstration week and $1071\mu s$ in December.
 
-<!-- TODO (HOME): Is it really a "pure hardware process" as LimitedResults says? It looks like on a successful glitch, the whole low section is skipped. -->
-<!-- TODO: Conclude the nRF52832 section -->
+Using the aforementioned script, a successful glitch was achieved and an example is shown in figure \ref{img_nrf52832_successful}.
+Compare this to figure \ref{img_nrf52832_crit_section_zoom}; notice how the CPU core voltage does not drop after the glitch.
+LimitedResults calls the CRP check a "pure hardware process" due to the absence of boot ROM @limitedresultsNRF52DebugResurrection2020, but the successful glitch seems to also bypass the whole section of slightly dropped voltage before the voltage drops more steeply for application execution.
+There is no mention of boot ROM---where code will be retrieved from and executed by the CPU---in the user guide but the lack of a voltage drop after the successful glitch looks more like a branch, and thus a section of code, has been skipped.
+Much of this can only be speculation, without details provided by the manufacturer.
+
+If some of the Pico Debug'n'Dump shipments had not had the resistor specification issue mentioned in section \ref{section_nrf52832_debugndump}, a successful crowbar voltage glitch would have been much more quickly and cheaply attained.
+On the other hand, focussing on using GIAnT allowed the development and testing of dormant crowbar glitch capabilities, which proved equally useful in replicating glitch attacks on nRF52 MCUs by LimitedResults @limitedresultsNRF52DebugResurrection2020 and Roth @rothHowAppleAirTags2021.
+
+![
+A successful glitch on the nRF52832. Trace 1 (yellow) is the CPU core voltage through DEC1 and trace 2 (blue) is the system voltage.
+\label{img_nrf52832_successful}
+](res/nrf52832_successful.png){width=400px}
 
 # CC2541 glitch attempts
 
@@ -368,7 +384,7 @@ The flag `--log` is useful for printing more detailed log messages if there is a
 If `cc-tool -f -r dump.bin --log` succeeds and CRP is disabled then the contents of the flash memory are read into `dump.bin` in the working directory.
 If `dump.bin` is the same as the application written to flash memory before the glitch campaign, the flash memory has been preserved throughout the glitch attempts, and the glitch is considered successful.
 
-## Finding a suitable glitch width
+## Finding a suitable glitch width\label{section_cc2541_suitable_width}
 
 The reasoning behind finding a suitable minimum glitch width is outlined in section \ref{section_nrf52832_suitable_width}.
 Much like the code written for finding the minimum glitch width for the nRF52832, a test application was written to toggle a pin on the CC2541 at $5ms$ intervals @rudmanCC2541BlinkPin, and a script was created for using the GIAnT board to glitch the CC2541 at an increasing offset @rudmanCC2541MinimumGlitch.
@@ -442,20 +458,21 @@ This is the period of time between trigger _T_ on figure \ref{img_cc2541_debuggi
 ## Glitch attempts
 
 Before carrying out differential power analysis (DPA), glitch attempts were made across the offset space outlined in section \ref{section_cc2541_suitable_offset}, cold boot and during and immediately after a debugging-triggered reset.
-Glitch attempts were made using GIAnT interface scripts on both reset during debugging command execution @rudmanCC2541CommandTriggeredGlitch and cold boot @rudmanCC2541ColdBoot.
+Glitch attempts were made using GIAnT interface scripts on both the reset caused by debugging command execution @rudmanCC2541CommandTriggeredGlitch and cold boot @rudmanCC2541ColdBoot.
+Both scripts cycled, for every glitch offset, through glitch widths of $50ns$ to $80ns$ at $10ns$ intervals, based on the findings presented in section \ref{section_cc2541_suitable_width} and repeated each glitch width 2 times.
+
+Debugging command-triggered glitches were triggered by falling edge transitions on RESET_N, connected to GPIO1_6 on the GIAnT board.
+The actual crowbar glitches were applied at offsets ranging from $1\mu s$ to $8.1ms$ at intervals of $0.5\mu s$ after the trigger (reset being pulled low), in order to attempt glitches during both reset and debug command handling.
+Cold boot-triggered glitches were triggered by enabling the DAC on the GIAnT board, supplying VDD on the CC2541, and glitches were applied at offsets ranging from $100\mu s$ to $700\mu s$ at intervals of $0.5\mu s$ after the trigger (CC2541 receiving power).
 Glitching on a cold boot---not during the reset and subsequent debug communication---was never likely to produce a CRP bypass, as described in section \ref{section_cc2541_suitable_offset}, but was carried out as a fallback after glitching during debug communication didn't produce a CRP bypass.
-<!-- TODO: Reference glitcher code for resets and note the parameters -->
-<!-- TODO: Reference glitcher code for cold boot and note the parameters -->
 
 For all of the offsets at which a glitch was applied, no CRP bypass was achieved.
 There were two times at which the microcontroller didn't reset and there was no "Target is locked" message, but neither of these were a CRP bypass.
 Neither of these outcomes happened on a cold boot glitch described occurred on a cold boot glitch.
 
-<!-- TODO: Talk about no-reset cc-tool and why it doesn't work. Resetting not optional; the reset with two falling edges is required to put into debug mode. -->
-
 ### Outcome: Corrupted debug status
 
-The first time time there was no "Target is locked" message was when the glitch was applied during debug communications; the `cc-tool` logs show that glitches during debug communications often cause the response or the processing of a request to be corrupted.
+The first time time there was no "Target is locked" message was when the glitch was applied during debug communications (after RESET_N has been pulled high again and during Debug Data activity); the `cc-tool` logs show that glitches during debug communications often cause the response or the processing of a request to be corrupted.
 Notice, in the log message in appendix \ref{appendix_corrupted_debug_status}, the following lines:
 
 ```
@@ -554,7 +571,7 @@ In addition, I have learned many new skills throughout:
 - Practical experience of voltage glitching using FPGA-based solutions and less real-time microcontroller-based solutions.
 - Using all of the software tooling required for the above devices.
 
-Methods for making crowbar attacks and other voltage glitches easier have also been outlined. <!-- TODO: No they haven't, do this in Observations and an Evaluation section before this -->
+Methods for making crowbar attacks and other voltage glitches easier have also been outlined. <!-- TODO: Add in a recap of outcomes and reference the section -->
 
 <!-- TODO: Recap some of Areas of Difficulty and refer to it -->
 
