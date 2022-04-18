@@ -14,6 +14,7 @@ csl: ieee.csl
 header-includes: >
   \linespread{1.2}
   \usepackage{xcolor}
+  \usepackage{pgf}
   \lstset{
       basicstyle=\ttfamily,
       numbers=left,
@@ -76,6 +77,8 @@ The exploratory experiments on the CC2541 outlined later in this report (power a
 Much like the Texas Instruments CC2541, the SiLabs C8051F340 is also an 8051-based chip.
 Methods outlined by @woutersSusceptibilityTexasInstruments, although applied to Texas Instruments microcontrollers based around ARM Cortex-M CPUs, were also helpful in compiling this report.
 Reading both of these works also helped in understanding what often makes a voltage glitch targeting CRP checks possible---neither the similarities between CPUs or manufacturers, but rather the nature of the CRP check itself (which could be done outside the CPU) or the copying of CRP data.
+
+<!-- TODO: Maybe add more related work here or talk about it more? -->
 
 ## Success criteria
 
@@ -260,7 +263,8 @@ These learning outcomes encouraged a deeper analysis of how the SoC or microcont
 ## Modifications
 
 The CC2541 is similar to the nRF52832 in that it also has a digital supply decoupling pin, DCOUPL, for use with a decoupling capacitor.
-Decoupling capacitors are intended to smooth out any sudden changes in voltage, so it's important that the decoupling capacitors are removed in order to see useful voltage traces when using an oscilloscope, and because they might prevent a successful voltage glitch. <!-- TODO: Add comparison screenshots from recordings -->
+Decoupling capacitors are intended to smooth out any sudden changes in voltage, so it's important that the decoupling capacitors are removed in order to see useful voltage traces when using an oscilloscope, and because they might prevent a successful voltage glitch.
+See figure \ref{img_cc2541_cap_comparison} for a comparison of DCOUPL traces before and after removing the decoupling capacitor.
 Initially the removal of the capacitor connected to DCOUPL was neglected and the voltage trace on DCOUPL looked very featureless; voltage trace readings were repeated after removing it.
 
 For easy connection to jumper wires and oscilloscope probes, wires were connected to the following areas on the CC2541 development board:
@@ -274,6 +278,14 @@ For easy connection to jumper wires and oscilloscope probes, wires were connecte
 
 For all pins other than VDD and GND, a solder pad on the development board was used to reduce mechanical strain on the chip legs, requiring continuity testing between legs and pads.
 DCOUPL was only one decoupling circuit listed in the data sheet, so it was assumed that if a successful crowbar voltage glitch would be possible, it would be on DCOUPL due to the lack of alternatives.
+
+\begin{figure}
+  \begin{center}
+      \input{res/capacitor_comparison.pgf}
+  \end{center}
+  \caption{A comparison of the DCOUPL power trace before (orange, bottom) and after (blue, top) removing the decoupling capacitor connected to DCOUPL. Captured at $250MSa/s$.\label{img_cc2541_cap_comparison}}
+\end{figure}
+
 
 ## Wiring
 
@@ -491,6 +503,10 @@ If there were more time for this project, it would have extended to include the 
 
 # Evaluation
 
+## Ease of use of voltage glitching hardware
+
+<!-- TODO: Write this section. Costs and experience. -->
+
 ## Comparing outcomes to success criteria
 
 The crowbar attack on nRF52 microcontrollers shown by LimitedResults @limitedresultsNRF52DebugResurrection2020 and Roth @rothHowAppleAirTags2021 was successfully repeated for the nRF52832 on a cheaply available development board using both the Pico Debug'n'Dump and GIAnT.
@@ -505,13 +521,7 @@ In addition, I have learned many new skills throughout:
 
 Methods for making crowbar attacks and other voltage glitches easier have also been outlined. <!-- TODO: No they haven't, do this in Observations and an Evaluation section before this -->
 
-
-<!-- TODO: Finish section. Use below as a template -->
-
-What I'd have done differently.
-For some things, it's hard to say, because I've learned a lot for the first time in this project.
-Knowing what I know now, it would have been better to identify whether there was any bootloader code I could have targeted before blindly glitching potential critical sections (although this glitching didn't take long).
-I would also have attempted DPA earlier on, but I did not know what the knowledge barriers for communicating with the oscilloscope would be, so it could have really slowed down the project if I had.
+<!-- TODO: Recap some of Areas of Difficulty and refer to it -->
 
 ## Conclusion
 
