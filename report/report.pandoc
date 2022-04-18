@@ -42,6 +42,7 @@ header-includes: >
 <!-- TODO: Write introduction. Use below as a template -->
 
 <!-- Put in mention of code readout protection, implementation attacks and background -->
+<!-- Include that finding a vulnerability for one chip in the family usually means the whole family is susceptible due to similar architecture. -->
 <!-- The following is ripped from the demonstration speaker notes and needs turning into acceptable language -->
 
 The "crowbar" technique involves momentarily shorting the CPU voltage to ground in order to miscalculate or skip an instruction.
@@ -80,6 +81,8 @@ Reading both of these works also helped in understanding what often makes a volt
 
 <!-- TODO: Maybe add more related work here or talk about it more? -->
 
+<!-- Grey-box not applicable due to no embedded bootloader -->
+
 ## Success criteria
 
 The success criteria have changed since the project proposal, but settled on the following: 
@@ -111,8 +114,6 @@ The glitch method for nRF52 microcontrollers, outlined by @limitedresultsNRF52De
 2. Wait until the memory controller starts transferring the user information configuration register values---including APPROTECT, the value of which determines whether the debug access port is protected---to the core. This time period is called the _glitch offset_.
 3. Short the CPU power to ground for a time period, the _glitch width_.
 
-<!-- TODO: How is the CRP checked by the glitcher? -->
-
 ### Generic setup
 
 Before using a glitch generator such as the Pico Debug'n'Dump or GIAnT, it is important to identify which pins will need to be accessed for the experiment.
@@ -124,6 +125,30 @@ The following pins must be identified on the target:
 
 A general purpose computer is used to configure the glitch parameters on the glitch generator and communicate with the nRF52832 over a debugging interface---in the case of the nRF52832, an ST-LINK V2, connected over USB to the general purpose computer.
 
+### Benchmarking a successful glitch
+
+Before running a glitch campaign against the nRF52832, the following console command is used while the nRF52832 is connected to the general purpose computer over an ST-LINK V2.
+This command enables CRP by writing `0x01` to the user information configuration register (UICR) APPROTECT, which is used to enable access port protection, disabling debug access.
+Any value other than 0xFF will enable the protection.
+
+```
+openocd -f interface/stlink.cfg \
+  -f target/nrf52.cfg \
+  -c 'init;halt;flash fillw 0x10001208 0xFFFFFF00 0x01;exit'
+```
+
+A crowbar glitch applied to the CPU of the nRF52832 which causes a bypass of CRP is considered a successful glitch.
+This is checked using the following command:
+
+```
+openocd -f interface/stlink.cfg \
+  -f target/nrf52.cfg \
+  -c 'init;dump_image nrf52_dump.bin 0x0 0x1000;exit'
+```
+
+This command reads the flash memory and code RAM contents to `nrf52_dump.bin`, and unlike in Roth's example @rothAirtagglitcher2021, the command was always found to be successful even if CRP was still enabled. 
+There is still hope however, because `nrf52_dump.bin` will start with a certain sequence if the binary is empty, indicating that CRP is still enabled.
+This sequence, `b"\x00\x00\x00#"` when matched in Python, is checked against the first four bytes of `nrf52_dump.bin` and if it doesn't exist, CRP is disabled and real flash memory has been dumped.
 
 ### Modifications
 
@@ -321,7 +346,7 @@ As long as SENSE is high (i.e. GIAnT DAC is supplying power to CC2541) when the 
 
 ## Glitch experiments plan
 
-For the CC2541, the CRP data is stored as a "debug lock bit": bit 127 (zero-indexed) in the "upper available flash page", according to the user guide. <!-- TODO: Reference User Guide -->
+For the CC2541, the CRP data is stored as a "debug lock bit": bit 127 (zero-indexed) in the "upper available flash page", according to the user guide.
 The following experiments will be attempted:
 
 1. Try to glitch a simple application while it's running on the CC2541 to find suitable parameters.
@@ -331,7 +356,17 @@ The following experiments will be attempted:
 
 Differential power analysis has been placed last in the list of experiments due to its time-consuming nature; thousands of traces need to be recorded from the oscilloscope, which also must be interfaced with the general purpose computer.
 
-<!-- TODO: Describe setup with cc-tool, incl. --log and other commands -->
+### Benchmarking a successful glitch
+
+When setting up the CC2541 for a CRP bypass glitch campaign, the console command `cc-tool -e -f -w application.bin` erases the flash and writes a test application `application.bin` to it, in fast mode.
+The command `cc-tool -l debug` enables the debug lock bit, enforcing CRP by disabling most debugging functionality, including reading the flash memory to retrieve the application.
+
+A crowbar glitch on DCOUPL which causes a bypass of CRP is considered a successful glitch.
+In the glitch helper applications [@rudmanCC2541CommandTriggeredGlitch; @rudmanCC2541ColdBoot], which control the GIAnT board, CRP is considered to be disabled if, and only if, the output from the console command `cc-tool -f -r dump.bin --log` contains "Reading flash".
+Otherwise CRP is assumed to still be enabled.
+The flag `--log` is useful for printing more detailed log messages if there is any unusual response, such as an exception or the text "Target is locked" is not in the output.
+If `cc-tool -f -r dump.bin --log` succeeds and CRP is disabled then the contents of the flash memory are read into `dump.bin` in the working directory.
+If `dump.bin` is the same as the application written to flash memory before the glitch campaign, the flash memory has been preserved throughout the glitch attempts, and the glitch is considered successful.
 
 ## Finding a suitable glitch width
 
@@ -470,7 +505,7 @@ The following were rectified before conclusions were drawn in any of the previou
 
 During initial analysis, removing the decoupling capacitor was seen as an optional step, which it can be if a voltage glitch is found without needing to study voltage traces more deeply.
 The problem with this was that removing the decoupling capacitor was postponed until it was forgotten, and the first traces recorded for differential power analysis were featureless due to the capacitor's damping effect.
-Many steps had to be repeated after removing this capacitor, and its removal made power analysis much easier. <!-- TODO: Show an example of DCOUPL with capacitor still in place and compare -->
+Many steps had to be repeated after removing this capacitor, and its removal made power analysis much easier, demonstrated in figure \ref{img_cc2541_cap_comparison}.
 
 Removal of the original wire soldered to DCOUPL and then its decoupling capacitor put too much strain and heat onto the solder pad used, which consequently lifted off the PCB.
 The jumper wire is now soldered to a much smaller and less disposable contact: the DCOUPL leg on the side of the chip itself.
