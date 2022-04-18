@@ -40,7 +40,7 @@ def check_protected():
         if "Target is locked." not in str(output) and os.path.exists("cc-tool.log"):
             with open("cc-tool.log", "r") as f:
                 print(f.read())
-        if "Reading info page..." in str(output):
+        if "Reading flash" in str(output):
             return False
     except Exception as e:
         print(e)

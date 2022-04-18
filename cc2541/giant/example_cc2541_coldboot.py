@@ -33,14 +33,14 @@ def check_protected():
     """
     try:
         output = subprocess.check_output(
-            ["cc-tool", "-f", "-r", "out.bin", "--log"],
+            ["cc-tool", "-f", "-r", "dump.bin", "--log"],
             stderr=subprocess.STDOUT
         )
         print(str(output))
         if "Target is locked." not in str(output) and os.path.exists("cc-tool.log"):
             with open("cc-tool.log", "r") as f:
                 print(f.read())
-        if "Reading info page..." in str(output):
+        if "Reading flash" in str(output):
             return False
     except Exception as e:
         print(e)
