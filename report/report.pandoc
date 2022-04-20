@@ -49,20 +49,20 @@ header-includes: >
   \textsc{Student ID:} 1907314\\
   \textsc{Supervisor:} Prof. David Oswald\\
   \textsc{Programme:} 610C - BSc Com Sc w DTP FT DA (PwC)\\
-  \textsc{Word Count:} 9313
+  \textsc{Word Count:} 9386
 \end{texto}
 \vspace{0.8cm}
 
 <!--TODO: Update word count -->
 
 \begin{abstract}
-  Embedded systems utilising microcontrollers are ubiquitous and even connected to the Internet, in everything from watches to washing machines.
-  Manufacturers of devices containing microcontrollers typically enable some form of code readout protection to protect their intellectual property, hiding their firmware and disabling a level of debugging access within these microcontrollers.
-  Voltage glitching is often a successful fault injection method used to bypass this readout protection and allow an adversary, security researcher or consumer to extract the firmware from the microcontroller's internal memory.
+  Embedded systems utilising microcontrollers have become ubiquitous; they are found in everything from watches to washing machines, and are commonly connected to the Internet.
+  Manufacturers of devices containing microcontrollers typically enable some form of code readout protection (CRP) to protect their intellectual property, hiding their firmware and disabling a level of debugging access within these microcontrollers.
+  Voltage glitching is an often successful fault injection method used to bypass this readout protection and allow an adversary, security researcher or consumer to extract the firmware from the microcontroller's internal memory.
 
   This report explores how "crowbar" voltage glitches---momentarily shorting the CPU core of a microcontroller to ground---can be used to bypass readout protection on members of two families of microcontrollers: Nordic Semiconductor's nRF52 series and Texas Instruments' CC253x/4x series.
   A successful glitch attempt is replicated on the nRF52832, faulting the CRP data and allowing the extraction of firmware.
-  Unsuccessful glitch attempts are made on the CC2541---for which there are no crowbar glitches leading to a CRP bypass published at the time of writing---with a repeatable outcome of full flash memory erasure documented.
+  Unsuccessful glitch attempts are made on the CC2541---for which there are no crowbar glitches leading to a CRP bypass published at the time of writing---with a repeatable glitch outcome of full flash memory erasure documented.
   A consistent methodology for both glitching attempts is outlined, starting with identifying a suitable glitch width and moving on to describe identifying potential critical sections in power traces.
   Two different glitch generators are used: the Pico Debug'n'Dump and an FPGA-based board using GIAnT, the Generic Implementation Analysis Toolkit.
   Finally, improvements to the ease of use of voltage glitching hardware are proposed; these intend to apply some direction to the problem of making voltage glitching kits more consumer-friendly, increasing the ease with which defunct consumer devices may be repurposed.
@@ -75,45 +75,45 @@ header-includes: >
 
 Embedded systems based around microcontroller units (MCUs) are ubiquitous due to their low cost and versatility when compared to purpose-built circuits.
 Microcontroller firmware is often protected from being read by the consumer with code readout protection (CRP), usually in the form of disabling debugging access to the microcontroller.
-This means that independent security researchers cannot easily extract the firmware to assess it for security vulnerabilities and consumers of many Internet of Things (IoT) devices are left with e-waste: devices which cannot be repurposed if the manufacturer goes bankrupt and can no longer provide the service they paid for.
-This service, in the current age of IoT, is often a webserver which augments or authorises the capabilities of the embedded system, which would need to be changed if the webserver goes dark---something which cannot be done if the original firmware cannot be read and modified.
+This means that independent security researchers cannot easily extract the firmware to assess it for security vulnerabilities and consumers of many Internet of Things (IoT) devices are left with e-waste: devices which cannot be repurposed if the manufacturer goes bankrupt and can no longer provide the original service.
+This service, in the current age of IoT, is often a webserver which augments or authorises the capabilities of the embedded system, and the address to this server would need to be changed if the webserver goes dark---something which cannot be done if the original firmware cannot be read and modified.
 
-There are many methods to remedy this problem and allow consumers and researchers to access the MCU firmware, but this report focuses on a fault injection method called voltage glitching.
+There are many potential remedies for this problem which would allow consumers and researchers to access the MCU firmware, but this report focuses on a fault injection method called voltage glitching.
 Fault injection is an active implementation attack whereby a fault in the operation of a computer is caused by putting it under unusual operating conditions.
-This fault may then propagate to an observable failure such as skipping the CRP check of a microcontroller under stress, and enabling its debugging capabilities when ordinarily they would be disabled.
-Voltage glitching is a method of fault injection where a fault is caused by changing the operating voltage of a device to be outside of its recommended value.
+This fault may then lead to an observable failure such as skipping the CRP check of a microcontroller under stress, enabling its debugging capabilities when ordinarily they would be disabled.
+Voltage glitching is a method of fault injection where a fault is caused by changing the operating voltage of a device to be outside of its recommended range.
 
-Voltage glitching was chosen as the area of research as opposed to invasive implementation attacks and legislative solutions---for example, forcing manufacturers to publish source code or allow debugging access to consumers---for the following reasons.
-Legislative solutions are slow, expensive and require many people in order for them to gain traction and, even then, can fail easily.
+Voltage glitching was chosen as the area of research for this report, as opposed to invasive implementation attacks and legislative solutions---for example, forcing manufacturers to publish source code or allow debugging access to consumers---for a few reasons.
+Legislative solutions are slow, expensive and require many people to back them in order to gain traction and, even then, can fail easily.
 Right to repair, for example, is a movement that's gained more traction over the last year, but it is not a new idea.
-Fault injection methods, on the other hand, can be done quickly and relatively cheaply by one person; they can be a very reliable way to change the behaviour of a microcontroller.
+Fault injection methods on the other hand can be done quickly and relatively cheaply by one person; they can be a very reliable way to change the behaviour of a microcontroller.
 Voltage glitching is an inexpensive and quickly repeatable active implementation attack, especially when compared to invasive implementation attacks such as using laser or UV-C light to flip bits.
 
-There are a variety of voltage glitching techniques including overvolting and undervolting, but this report researches the feasibility of a "crowbar" voltage glitch @oflynnFaultInjectionUsing2016 on two MCUs: Nordic Semiconductor's nRF52832 and Texas Instruments' CC2541.
+There are a variety of voltage glitching techniques including overvolting and undervolting, but this report researches the feasibility of using a "crowbar" voltage glitch @oflynnFaultInjectionUsing2016 to bypass the CRP of two MCUs: Nordic Semiconductor's nRF52832 and Texas Instruments' CC2541.
 A crowbar voltage glitch involves momentarily shorting the CPU voltage to ground in order force the CPU to miscalculate or skip an instruction.
-In order to learn more about voltage glitching, the first chip for which a crowbar glitch to bypass CRP will be attempted is the nRF52832, due to the existence of documentation relating to executing this type of glitch.
-The second experiment will be to apply the same techniques learned during work on the nRF52832 to the CC2541, to see whether there is a similar vulnerability present on a microcontroller with a different CPU core from a different manufacturer.
+In order to learn more about voltage glitching, the first chip for which a crowbar glitch to bypass CRP will be attempted is the nRF52832, due to the existence of documentation relating to executing this type of glitch [@limitedresultsNRF52DebugResurrection2020; @rothHowAppleAirTags2021].
+The second experiment will be to apply the same techniques learned during work on the nRF52832 to the CC2541, to see whether there is a similar vulnerability present on a microcontroller with a different CPU core and from a different manufacturer.
 Any methods which bypass CRP are assumed to also be applicable to the rest of the microcontroller family of each target: nRF52 and CC253x/4x.
-This report also outlines ways in which voltage glitching techniques could be made more accessible to the consumer who is trying to repurpose defunct hardware with CRP enabled.
+This report also outlines ways in which voltage glitching techniques could be made more accessible to the consumer who is trying to repurpose defunct hardware which has CRP enabled.
 
 ## Related work
 
 The nRF52832, used in Apple AirTags, is susceptible to a crowbar glitch to skip its CRP check, demonstrated by Roth @rothHowAppleAirTags2021.
-Roth also cites earlier work from a blog, LimitedResults @limitedresultsNRF52DebugResurrection2020, which focuses on a similar system-on-a-chip (SoC), the nRF52840, and presents information from the nRF52 family in the context of voltage glitching and CRP.
+Roth also cites earlier work from a blog, LimitedResults @limitedresultsNRF52DebugResurrection2020, which focuses on a similar system-on-a-chip (SoC), the nRF52840, and presents information about the nRF52 family in the context of voltage glitching and CRP.
 Replicating Roth's and LimitedResults' work is the first experiment of this project and was used as a framework for learning about many aspects of voltage glitching for the first time before moving onto a novel experiment: applying a similar glitch to the Texas Instruments CC2541.
 
 Voltage glitching can also be used in conjunction with binary analysis---a so-called grey-box approach---on embedded bootloaders @vandenherrewegenFillYourBoots2020.
-Although the nRF52832---the target of this report's first voltage glitch experiment---has a CRP check before any bootloader (which, if present, would be stored on flash memory), Van Den Herrewegen et al. outline voltage glitches on three different MCUs, which is useful information for learning about voltage glitching.
-In the aforementioned paper the GIAnT @oswaldGiant2016 is also used for the attacks.
-GIAnT is used throughout this report as the primary glitching system for glitching the nRF52832 and CC2541, although the Pico Debug'n'Dump @rothPicoDebugDump was also used against the nRF52832 for comparison.
+Although the nRF52832---this report's first voltage glitch target---has a CRP check before any optional bootloader, Van Den Herrewegen et al. outline voltage glitches on three different MCUs, presenting useful information and methods for someone learning about voltage glitching.
+In the aforementioned paper the GIAnT @oswaldGiant2016 is also used for the attacks; GIAnT is also used throughout this report as the primary glitching system for glitching the nRF52832 and CC2541, although the Pico Debug'n'Dump @rothPicoDebugDump is used as well against the nRF52832 for comparison.
 
 O'Flynn details the application of crowbar circuits---which are used to short-circuit a component to ground---in voltage glitching methods @oflynnFaultInjectionUsing2016.
 Similar to O'Flynn's usage of the n-channel MOSFET on the ChipWhisperer, both the Pico Debug'n'Dump and GIAnT boards utilise an n-channel MOSFET in their implementations of a crowbar circuit.
+The application of these crowbar voltage glitches is the main focus of this report.
 
-The exploratory experiments on the CC2541 outlined later in this report (power analysis, glitching anything to find reasonable parameters, etc.) were inspired by a glitch campaign carried out by GitHub user debug-silicon against the SiLabs C8051F340 @debug-siliconSiLabsC8051F34xCode2021.
+The exploratory experiments on the CC2541 outlined later in this report (power analysis, glitching a test application to find suitable parameters, etc.) were inspired by a glitch campaign carried out by GitHub user debug-silicon against the SiLabs C8051F340 @debug-siliconSiLabsC8051F34xCode2021.
 Much like the Texas Instruments CC2541, the SiLabs C8051F340 is also an 8051-based chip.
 Methods outlined by Wouters et al. @woutersSusceptibilityTexasInstruments2022, although applied to Texas Instruments microcontrollers based around ARM Cortex-M CPUs rather than 8051 CPUs, were also helpful in compiling this report.
-Reading both of these works also helped in understanding what often makes a voltage glitch targeting CRP checks possible---neither the similarities between CPUs or manufacturers, but rather the nature of the CRP check itself (which could be done outside the CPU) or the copying of CRP data.
+Reading both of these papers helped in understanding what often makes a voltage glitch targeting CRP checks possible---neither the similarities between CPUs or manufacturers, but rather the nature of the CRP check itself (which could be done outside the CPU) or the movement of CRP data.
 
 ## Success criteria
 
@@ -121,7 +121,7 @@ The success criteria, or aims of this project, have changed since the project pr
 
 - Replicate the crowbar attack Roth carried out on an nRF52832 on a development board @rothHowAppleAirTags2021.
 - Add to the knowledge of which chips are vulnerable to crowbar voltage glitch attacks.
-  - Answer whether same crowbar technique applied to the nRF52 series by both Roth @rothHowAppleAirTags2021 and LimitedResults @limitedresultsNRF52DebugResurrection2020 could be replicated and applied to another family of microcontrollers, the CC253x/4x series from Texas Instruments.
+  - Answer whether the same crowbar technique applied to the nRF52 series by both Roth @rothHowAppleAirTags2021 and LimitedResults @limitedresultsNRF52DebugResurrection2020 could be repeated and applied to another family of microcontrollers, the CC253x/4x series from Texas Instruments.
 - Evaluate how it might be made easier and more reliable to carry out crowbar attacks.
 
 Previously, this project's success criteria were focused on successfully glitching and then dumping the firmware of the nRF52832 and, later, the CC2541.
@@ -130,13 +130,13 @@ In contrast, the bullet points above are more learning-oriented, focusing on inv
 # Replicating a crowbar attack on the nRF52832
 
 The nRF52832 is a member of the nRF52 series from Nordic Semiconductor, a series based around the ARM Cortex-M4 processor and a $2.4\si{\giga\hertz}$ transceiver.
-This section outlines a successful attempt at replicating the crowbar voltage glitch attack on the nRF52832---initially demonstrated by Roth @rothHowAppleAirTags2021---to fault its CRP check and allow debugging access in the serial bootloader.
+This section outlines a successful attempt at replicating the crowbar voltage glitch attack on the nRF52832, initially demonstrated by Roth @rothHowAppleAirTags2021, to fault its CRP check and allow debugging access in the serial bootloader.
 Roth showed how the nRF52832 could be glitched in situ on the AirTag PCB and built on the efforts of LimitedResults @limitedresultsNRF52DebugResurrection2020 who used the nRF52840, but the following experiment aims to glitch the nRF52832 on a development board.
 It is likely that, due to the similarities in features, processors and memory layouts, a voltage glitch which allows CRP bypass on one member of the nRF52 series is also applicable, with little to no adjustments, to any other member of the nRF52 series of microcontrollers.
-These similarities are why LimitedResults' method can also be applied to the nRF52832.
+These similarities are why LimitedResults' method could also be applied to the nRF52832.
 
 Without a background in electronics and fault injection, the reproduction of Roth's and LimitedResults' experiments proved to be a learning experience.
-This process would go on to provide knowledge and practise in preparation for investigating whether similar attacks would be possible on the CC2541.
+Following this process would go on to provide knowledge and practise in preparation for investigating whether similar attacks would be possible on the CC2541.
 
 ## Glitch method
 
@@ -153,13 +153,13 @@ The following pins must be identified on the target:
 
 - Power supply and ground connections because the microcontroller needs to be powered and operational while glitching.
 - Debug access pins, for dumping firmware and sending other commands to the target.
-- A decoupling circuit for the target, if not glitching the power supply voltage.
+- A decoupling circuit for the target.
 
-A general purpose computer is used to configure the glitch parameters on the glitch generator and communicate with the nRF52832 over a debugging interface---in the case of the nRF52832, an ST-LINK V2, connected over USB to the general purpose computer.
+A general purpose computer is used to configure the glitch parameters on the glitch generator and communicate with the nRF52832 over a debugging interface which, in the case of the nRF52832, an ST-LINK V2 connected over USB to the computer.
 
 ### Benchmarking a successful glitch
 
-Before running a glitch campaign against the nRF52832, the following console command is used while the nRF52832 is connected to the general purpose computer over an ST-LINK V2.
+Before running a glitch campaign against the nRF52832, the following console command is executed while the nRF52832 is connected to the general purpose computer over an ST-LINK V2.
 This command enables CRP by writing `0x01` to the user information configuration register (UICR) APPROTECT, which is used to enable access port protection, disabling debug access.
 Any value other than 0xFF will enable the protection.
 
@@ -184,8 +184,8 @@ This sequence, `b"\x00\x00\x00#"` when matched in Python, is checked against the
 
 ### Modifications
 
-A number of wires needed to be attached to the nRF52832 development board for easy connection to other jumper wires.
-These wires had to be connected to the following pins on the nRF52832 chip itself:
+Five wires needed to be attached to the nRF52832 development board for easy connection to other jumper wires.
+These wires had to be trace back to the following pins on the nRF52832 chip itself:
 
 - `VDD`: Power supply
 - `VSS`: Ground
@@ -194,16 +194,15 @@ These wires had to be connected to the following pins on the nRF52832 chip itsel
 - `DEC1`: $0.9\si{\volt}$ digital supply decoupling (CPU voltage regulator)
 
 Identifying which pins these are requires referring to the nRF52832 Product Specification and using a multimeter to find the development board pins they are attached to.
-The pins on the nRF52832 development board were too narrow and close together for any of the jumper wires available, so jumper wires were cut and soldered onto them for easier access.
+The header pins on the nRF52832 development board were too narrow and close together for any of the jumper wires available, so jumper wires were cut and soldered onto them for easier access.
 
-Glitching the CPU voltage regulator decoupling circuit allows an attacker to specifically target the CPU, rather than the full system, which prevents the glitch being "absorbed" by other circuitry.
-The decoupling capacitor was also removed from the `DEC1`, to prevent damping of the glitch and the traces when reading the oscilloscope.
+Glitching the CPU voltage regulator decoupling circuit allows an attacker to specifically target the CPU, rather than the full system, which means that the CPU is more likely to feel the effect of the glitch.
+The decoupling capacitor was also removed from the `DEC1`, to prevent damping of the glitch and the voltage traces when reading the oscilloscope.
 
 ## Using Pico Debug'n'Dump\label{section_nrf52832_debugndump}
 
 The video demonstrating the nRF52832 glitch, uploaded by Roth @rothHowAppleAirTags2021, introduces the Pico Debug'n'Dump, a \$25 commercially available device @rothPicoDebugDump Roth created to make crowbar voltage glitching cheaper and easier.
-
-The glitching application Roth published @rothAirtagglitcher2021 was flashed to the Debug'n'Dump by the general purpose computer.
+Roth had also published a glitching application @rothAirtagglitcher2021, which was flashed to the Debug'n'Dump by the general purpose computer.
 Below is a table of the wiring setup.
 
 | Debug'n'Dump | nRF52832 | ST-LINK | Description                           |
@@ -214,41 +213,39 @@ Below is a table of the wiring setup.
 |              | `SWDIO`    | `SWDIO`   | Serial wire debug I/O                 |
 |              | `SWCLK`    | `SWCLK`   | Serial wire clock input from ST-LINK  |
 
-The first run didn't seem to have any effect on the nRF52832, but an oscilloscope wasn't available for troubleshooting at the time.
-After acquiring an oscilloscope and connecting it to the `Glitch`-`DEC1` wire, it was observed that there was only a small pulse happening on `DEC1` at the glitch offset; the short circuit wasn't being applied.
-An issue was created on the airtag-glitcher GitHub repo documenting these findings @GlitchPinNot.
+The first run didn't seem to have any effect on the nRF52832, but an oscilloscope wasn't available for troubleshooting at the time so there was no way of knowing whether the glitch was being applied, or when.
+After acquiring an oscilloscope and connecting it to the `Glitch`/`DEC1` wire, it was observed that there was only a small pulse happening on `DEC1` at the glitch offset; the short circuit wasn't being applied.
+An issue was created on the airtag-glitcher GitHub repo documenting these findings @GlitchPinNot in the hope of communicating with Roth about this problem and fixing it.
 
 It was established during communication on the GitHub issue that there was a manufacturing issue with some Debug'n'Dump units, where a pull-down resistor for the Glitch pin was rated at $10\si{\kilo\ohm}$ rather than $100\si{\ohm}$, preventing the short circuit from being applied.
-This resistor could be removed due to the fact that the Pico pins are internally pulled down; it was redundant.
-In the meantime, the approach had changed to use GIAnT, an FPGA-based glitching board and implementation analysis toolkit, to replicate the attack.
+This resistor could be removed because it was redundant, due to the fact that the Pico pins are internally pulled down.
+To avoid wasting time while waiting for Roth to reply, the approach changed to use GIAnT, an FPGA-based glitching board and implementation analysis toolkit, to replicate the attack.
 Returning to the Debug'n'Dump---after succeeding with GIAnT---and removing its redundant resistor fixed the issue and not only was the short circuit of `DEC1` clearly visible on an oscilloscope, but CRP was bypassed within a few minutes.
 
 ## Using GIAnT\label{section_nrf52832_giant}
 
-GIAnT, an implementation analysis toolkit based around an FPGA board @oswaldGiant2016, was used as the glitch generator for attacking the nRF52832 after experimenting with the Pico Debug'n'Dump.
+Generic Implementation Analysis Toolkit (GIAnT) is an implementation analysis toolkit for use with FPGA-based boards @oswaldGiant2016, and was used as the glitch generator for attacking the nRF52832 after experimenting with the Pico Debug'n'Dump.
 Boards used by GIAnT are custom and cannot currently be found commercially; the one used in this experiment extends the ZTEX USB-FPGA Module 2.04, which costs €129 alone @USBFPGAModule04.
-The GIAnT board used for this experiment didn't originally have a transistor soldered to it (but had the solder pads available) for the purposes of a crowbar circuit, so a MOSFET had to be added to the trace leading to pin `T1`, along with the capability to use it in the FPGA bytestream.
+The GIAnT board used for this experiment didn't originally have a transistor soldered to it for the purposes of a crowbar circuit (but had the solder pads available), so a MOSFET had to be added to the trace leading to pin `T1`, along with the capability to use it in the FPGA bytestream.
 
-Wiring the nRF52832 to the GIAnT is similar to the Pico Debug'n'Dump configuration: `VDD` on the MCU is plugged into the DAC output on the GIAnT and `DEC1` is wired to `T1` on the GIAnT for the CPU crowbar.
+Wiring the nRF52832 to the GIAnT is similar to the Pico Debug'n'Dump: `VDD` on the MCU is plugged into the DAC output on the GIAnT and `DEC1` is wired to `T1` on the GIAnT for the CPU crowbar.
 
-After flashing the firmware to the GIAnT development board, a Python library is used to interact with the board over USB and configure DAC voltage and the glitching parameters: the pin address for triggering the glitch, the glitch offset and the glitch width.
-
-The application @rudmanNRF52832FullGIAnT2022 configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch---that is, a glitch causing the bypass of CRP.
-The initial offset is configured to be immediately before the critical section (see "Finding a suitable glitch offset").
-Once there is a glitch success---defined as the firmware read command being allowed by the MCU---the application on the controlling computer stops running, and a dump of the nRF52832's firmware is left in the working directory.
+After flashing the glitching firmware to the GIAnT development board, a Python library is used to interact with the board over USB and configure DAC voltage and the glitching parameters: the pin address for triggering the glitch, the glitch offset and the glitch width.
+The application @rudmanNRF52832FullGIAnT2022 configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths.
+Slowly working through offsets and pulse widths increases the likelihood of finding glitch parameters which bypass CRP.
+The initial offset is configured to be immediately before the critical section (see section \ref{section_nrf52832_suitable_offset}).
+Once there is a glitch success---defined by the extraction of valid firmware---the application on the general purpose computer stops running, and a dump of the nRF52832's firmware is left in the working directory.
 
 ### Finding a suitable glitch width\label{section_nrf52832_suitable_width}
 
-Although the parameters will change, a suitable minimum glitch width should be found.
-This is defined in this case as the smallest glitch width at which a CPU instruction will be skipped or miscalculated.
-If the glitch width is too small, there is a chance that it will have no effect (or is too small for the glitch generator), but if it is too large, the microcontroller might reset or the CPU might not start up again.
-
+Although the parameters will change during runtime, a suitable _minimum_ glitch width should be found, which is the smallest glitch width at which a CPU instruction will be skipped or miscalculated.
+If the glitch width is too small, there is a chance that it will have no effect (or is too small for the glitch generator to output), but if it is too large the microcontroller might reset or the CPU might fail until the next reset.
 On each iteration, the glitch width is increased by $10\si{\nano\second}$ to increase the likelihood of a successful glitch, should it require a longer glitch width.
-The difference between the smallest and largest glitch width is not large, because it could extend runtime unnecessarily, given the fact that the minimum glitch width should already reliably glitch a test application.
+The difference between the smallest and largest glitch width is not large because it could extend runtime unnecessarily; the minimum glitch width should already reliably glitch a test application and so there's little need to iterate over many widths.
 
-This step can also be used to diagnose any problems with the glitching setup because in most cases where the CPU voltage is glitched, a fault should occur in the execution of the running application.
+The process of finding a suitable glitch width can also be used to diagnose any problems with the glitching setup because in most cases where the CPU voltage is glitched, a fault should occur in the execution of the running application.
 O'Flynn uses a `for` loop containing a counter incrementation, nested in another `for` loop, to show how the counter incrementation is skipped when both loops are complete and the counter is printed @oflynnFaultInjectionUsing2016.
-Due to the added complexity of relying on printing to a buffer---requiring some use of another serial connection in this case---a simple GPIO pin toggling application was used and an oscilloscope was connected to that pin to observe the effect of a glitch @rudmanNRF52832BlinkPin2022.
+Due to the added complexity of relying on printing to a buffer---requiring the use of another serial connection in this case---a simple GPIO pin toggling application was created, flashed and an oscilloscope was connected to that pin to observe the effect of a glitch @rudmanNRF52832BlinkPin2022.
 Normal operation of this application is shown in figure \ref{img_nrf52832_blink_no_glitch}.
 
 ![The pin toggling application functioning normally, with no glitch. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Trigger _T_ points to the moment the nRF52832 becomes powered.\label{img_nrf52832_blink_no_glitch}](res/nrf52832_blink_no_glitch.png){width=550px}
