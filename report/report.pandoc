@@ -30,10 +30,10 @@ header-includes: >
   }
   \usepackage{varwidth}
   \usepackage{siunitx}
+  \usepackage{adjustbox}
+  \usepackage{environ}
+  \NewEnviron{scalept8}{\scalebox{0.8}{\BODY}}
 ---
-
-  <!-- \usepackage[style=ieee]{biblatex} -->
-  <!-- \addbibresource{references.bib} -->
 
 \newenvironment{texto}{%
   \begin{center} % so the minipage is centered
@@ -49,7 +49,7 @@ header-includes: >
   \textsc{Student ID:} 1907314\\
   \textsc{Supervisor:} Prof. David Oswald\\
   \textsc{Programme:} 610C - BSc Com Sc w DTP FT DA (PwC)\\
-  \textsc{Word Count:} 9293
+  \textsc{Word Count:} 9313
 \end{texto}
 \vspace{0.8cm}
 
@@ -251,7 +251,7 @@ O'Flynn uses a `for` loop containing a counter incrementation, nested in another
 Due to the added complexity of relying on printing to a buffer---requiring some use of another serial connection in this case---a simple GPIO pin toggling application was used and an oscilloscope was connected to that pin to observe the effect of a glitch @rudmanNRF52832BlinkPin2022.
 Normal operation of this application is shown in figure \ref{img_nrf52832_blink_no_glitch}.
 
-![The pin toggling application functioning normally, with no glitch. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Trigger _T_ points to the moment the nRF52832 becomes powered.\label{img_nrf52832_blink_no_glitch}](res/nrf52832_blink_no_glitch.png){width=400px}
+![The pin toggling application functioning normally, with no glitch. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Trigger _T_ points to the moment the nRF52832 becomes powered.\label{img_nrf52832_blink_no_glitch}](res/nrf52832_blink_no_glitch.png){width=550px}
 
 After creating a simple script to try a given glitch width over a rough range of offsets @rudmanNRF52832MinimumGlitch2022, the script was run against the nRF52832 running its pin toggling application.
 Manually increasing the value of `width` in the script from $10\si{\nano\second}$---the GIAnT board cannot produce glitches shorter than $10\si{\nano\second}$---showed that the minimum glitch width to successfully fault the CPU execution, at least in the case of application execution, is $50\si{\nano\second}$, as shown in figure \ref{img_nrf52832_blink_glitch}.
@@ -259,9 +259,11 @@ The result of the fault is that the application jumps out of the `while` loop al
 This could be due to skipping a jump instruction, but it is likely that the fault occurs during the 5ms delay routine---which doesn't just use `NOP`s in the case of the nRF52832---and jumps out of it, especially because the glitch will work at many offsets.
 At widths as large as $140\si{\nano\second}$, the CPU would permanently fail until the next reset, as shown in figure \ref{img_nrf52832_blink_permafail}.
 
-![The pin toggling application being faulted, with a $50\si{\nano\second}$ glitch applied to the CPU core at trigger _T_. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_glitch}](res/nrf52832_blink_glitch.png){width=400px}
+![The pin toggling application being faulted, with a $50\si{\nano\second}$ glitch applied to the CPU core at trigger _T_. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_glitch}](res/nrf52832_blink_glitch.png){width=550px}
 
-![The pin toggling application being faulted, with a $140\si{\nano\second}$ glitch applied to the CPU core at trigger _T_, causing the CPU to permanently fail until next reset. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_permafail}](res/nrf52832_blink_permafail.png){width=400px}
+![The pin toggling application being faulted, with a $140\si{\nano\second}$ glitch applied to the CPU core at trigger _T_, causing the CPU to permanently fail until next reset. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Normal operation shown in figure \ref{img_nrf52832_blink_no_glitch}.\label{img_nrf52832_blink_permafail}](res/nrf52832_blink_permafail.png){width=550px}
+
+![Glitch width vs. proportion of successes (out of 399 successes) for the nRF52832.\label{img_nrf52832_width_vs_success}](res/nrf52832_width_vs_success.png){width=500px}
 
 Later investigation has found that a width of $50\si{\nano\second}$ is typically too short to reliably fault the NVMC activity and therefore the CRP, and glitch widths as large as $180\si{\nano\second}$ do not cause the CPU to permanently fail until reset when targeting the critical section.
 This is why it is important to cycle through a number of glitch widths when approaching a critical section.
@@ -271,8 +273,6 @@ A successful glitch is a glitch on the NVMC activity outlined in section \ref{se
 Figure \ref{img_nrf52832_width_vs_success} shows that the optimal glitch width is between $80\si{\nano\second}$ and $120\si{\nano\second}$.
 It's important, for future glitch campaigns on the nRF52832 CPU core using a crowbar technique, that the glitch width range used is reduced to this identified range because it can reduce the time needed for a successful glitch.
 Although there have been successes outside of the $80-120\si{\nano\second}$ range, successful glitches can still be made more likely in the $80-120\si{\nano\second}$ range by repeating with the same parameters, which is especially useful at counteracting jitter.
-
-![Glitch width vs. proportion of successes (out of 399 successes) for the nRF52832.\label{img_nrf52832_width_vs_success}](res/nrf52832_width_vs_success.png){width=400px}
 
 ### Finding a suitable glitch offset\label{section_nrf52832_suitable_offset}
 
@@ -285,17 +285,19 @@ This NVMC activity, according to LimitedResults, is likely to contain the transf
 A similar section was identified for the nRF52832 and has been highlighted in figure \ref{img_nrf52832_crit_section_no_zoom}, and is shown, zoomed-in, in figure \ref{img_nrf52832_crit_section_zoom}.
 The noise present in figures \ref{img_nrf52832_crit_section_no_zoom} and \ref{img_nrf52832_crit_section_zoom} is due to the nRF52832 `VDD` being connected to the GIAnT DAC, rather than the ST-LINK V2.
 
-![Red box highlighting critical section after nRF52832 power-on. Trace 1 (yellow) is the CPU core voltage, trace 2 (blue) is the voltage of `VDD`, trace 3 (purple) is the pin being toggled by the application on the nRF52832.\label{img_nrf52832_crit_section_no_zoom}](res/nrf52832_crit_section_no_zoom_highlight.png){width=400px}
+![Red box highlighting critical section after nRF52832 power-on. Trace 1 (yellow) is the CPU core voltage, trace 2 (blue) is the voltage of `VDD`, trace 3 (purple) is the pin being toggled by the application on the nRF52832.\label{img_nrf52832_crit_section_no_zoom}](res/nrf52832_crit_section_no_zoom_highlight.png){width=550px}
 
-![Zoomed-in version of the traces in figure \ref{img_nrf52832_crit_section_no_zoom}. Critical section (NVMC activity) highlighted in red box.\label{img_nrf52832_crit_section_zoom}](res/nrf52832_crit_section_zoom_highlight.png){width=400px}
+![Zoomed-in version of the traces in figure \ref{img_nrf52832_crit_section_no_zoom}. Critical section (NVMC activity) highlighted in red box.\label{img_nrf52832_crit_section_zoom}](res/nrf52832_crit_section_zoom_highlight.png){width=550px}
 
-![Screenshot of the nRF52840 critical section, captured by LimitedResults @limitedresultsNRF52DebugResurrection2020. Trace 2 (light blue) is the CPU core voltage at `DEC1` and trace 4 (dark blue) is the system power voltage at DEC4. Compare with figure \ref{img_nrf52832_crit_section_zoom}.\label{img_nrf52832_limitedresults_crit_section}](res/nrf52832_limitedresults_crit_section.png){width=400px}
+![Screenshot of the nRF52840 critical section, captured by LimitedResults @limitedresultsNRF52DebugResurrection2020. Trace 2 (light blue) is the CPU core voltage at `DEC1` and trace 4 (dark blue) is the system power voltage at DEC4. Compare with figure \ref{img_nrf52832_crit_section_zoom}.\label{img_nrf52832_limitedresults_crit_section}](res/nrf52832_limitedresults_crit_section.png){width=550px}
+
+![Glitch offset vs. proportion of successes (out of 399 successes) for the nRF52832.\label{img_nrf52832_offset_vs_success}](res/nrf52832_offset_vs_success.png){width=550px}
 
 This critical section lasts for about $2\si{\micro\second}$, although glitches are usually successful in the later part of the critical section.
 To account for jitter---the changing location of the critical section between power cycles---the glitch offset can be said to start at $1029\si{\micro\second}$ after supplying power to the nRF52832, and increase by $1\si{\micro\second}$ until $1044\si{\micro\second}$.
 The offsets for 399 successful glitches were recorded and the proportion of glitch successes for each glitch offset is shown in figure \ref{img_nrf52832_offset_vs_success}.
 
-![Glitch offset vs. proportion of successes (out of 399 successes) for the nRF52832.\label{img_nrf52832_offset_vs_success}](res/nrf52832_offset_vs_success.png){width=400px}
+\newpage
 
 ## Observations\label{section_nrf52832_observations}
 
@@ -316,7 +318,7 @@ On the other hand, focusing on using GIAnT allowed the development and testing o
 ![
 A successful glitch on the nRF52832. Trace 1 (yellow) is the CPU core voltage through `DEC1` and trace 2 (blue) is the system voltage.
 \label{img_nrf52832_successful}
-](res/nrf52832_successful.png){width=400px}
+](res/nrf52832_successful.png){width=550px}
 
 # CC2541 glitch attempts
 
@@ -338,8 +340,7 @@ These learning outcomes encouraged a deeper analysis of how the SoC or microcont
 The CC2541 is similar to the nRF52832 in that it also has a digital supply decoupling pin, `DCOUPL`, for use with a decoupling capacitor.
 Decoupling capacitors are intended to smooth out any sudden changes in voltage, so it's important that the decoupling capacitors are removed in order to see useful voltage traces when using an oscilloscope, and because they might prevent a successful voltage glitch.
 See figure \ref{img_cc2541_cap_comparison} for a comparison of `DCOUPL` traces before and after removing the decoupling capacitor.
-Initially the removal of the capacitor connected to `DCOUPL` was neglected and the voltage trace on `DCOUPL` looked very featureless; voltage trace readings were repeated after removing it.
-
+Initially the removal of the capacitor connected to `DCOUPL` was neglected and the voltage trace on it looked very featureless; voltage trace readings were repeated after removing the decoupling capacitor.
 For easy connection to jumper wires and oscilloscope probes, wires were connected to the following areas on the CC2541 development board:
 
 - `VDD`: Power supply---there was already a header pin for this
@@ -349,14 +350,14 @@ For easy connection to jumper wires and oscilloscope probes, wires were connecte
 - `RESET_N`: Reset pin, for debugging
 - `DCOUPL`: $1.8\si{\volt}$ digital supply decoupling circuit
 
-For all pins other than `VDD` and `GND`, a solder pad on the development board was used to reduce mechanical strain on the chip legs, requiring continuity testing between legs and pads.
-`DCOUPL` was only one decoupling circuit listed in the data sheet, so it was assumed that if a successful crowbar voltage glitch would be possible, it would be on `DCOUPL` due to the lack of alternatives.
+For all pins other than `VDD` and `GND`, a solder pad on the development board was used to reduce mechanical strain on the chip legs, found using continuity testing between legs and pads.
+Unlike for the nRF52832 `DCOUPL` was the only decoupling circuit listed in the data sheet, so it was assumed that if a successful crowbar voltage glitch is possible, it would be there.
 
 \begin{figure}
   \begin{center}
-      \input{res/capacitor_comparison.pgf}
+    \scalebox{0.8}{\input{res/capacitor_comparison.pgf}}
   \end{center}
-  \caption{A comparison of the `DCOUPL` power trace before (orange, bottom) and after (blue, top) removing the decoupling capacitor connected to `DCOUPL`. Captured at $250\textrm{MSa/s}$.\label{img_cc2541_cap_comparison}}
+  \caption{A comparison of the \texttt{DCOUPL} power trace before (orange, bottom) and after (blue, top) removing the decoupling capacitor connected to \texttt{DCOUPL}. Captured at $250\textrm{MSa/s}$.\label{img_cc2541_cap_comparison}}
 \end{figure}
 
 
@@ -373,7 +374,10 @@ It can be seen as taking the place of the ST-LINK V2 from the nRF52832 glitch ca
 | `GND`          | `GND`      | `GND`         | Grounds the CC2541                    |
 |              | `DD`       | `DD`          | Debug data connection                 |
 |              | `DC`       | `DC`          | Debug clock connection                |
-| GPIO1_6      | `RESET_N`  | `RST`         | Allows the CC Debugger to reset CC2541 and GIAnT to sense it |
+| `GPIO1_6`      | `RESET_N`  | `RST`         | Allows the CC Debugger to reset CC2541 and GIAnT to sense it |
+
+
+\newpage
 
 Initially, the CC2541 was powered exclusively by the CC Debugger, with `DCOUPL` and `RESET_N` being connected to the GIAnT from the CC2541.
 This was done so the CC Debugger could have full control over the CC2541, while allowing GIAnT to trigger when `RESET_N` was pulled high.
@@ -427,7 +431,7 @@ Normal operation of the pin toggling application is shown in figure \ref{img_cc2
 ![
 The CC2541 pin toggling application without a glitch. Trace 1 (yellow): `DCOUPL`, trace 2 (light blue): `RESET_N`, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
 \label{img_cc2541_blink_no_glitch}
-](res/cc2541_blink_no_glitch.png){width=400px}
+](res/cc2541_blink_no_glitch.png){width=550px}
 
 Due to the use of `NOP`s in the `delay_ms` function written by Grapsus @grapsusCc254xSdcc for the CC2541 and used by the application, most offsets will not show a discernible glitch outcome, unlike for the nRF52832.
 This means that, unless the glitch occurs within a single clock cycle, or about $31\si{\nano\second}$, before the "state" pin toggles, the trace will continue to look like the application is running as expected, because only a `NOP` or two are skipped.
@@ -443,13 +447,13 @@ The reason there are no success rates listed is because the success of each glit
 The CC2541 pin toggling application with a $50\si{\nano\second}$ crowbar glitch at trigger _T_, causing the pin toggle instruction to be skipped and the STATE pin remains high for another $5\si{\milli\second}$.
 Trace 1 (yellow): `DCOUPL`, trace 2 (light blue): `RESET_N`, trace 3 (purple): STATE on the development board (the pin being toggled).
 \label{img_cc2541_blink_glitch}
-](res/cc2541_blink_glitch.png){width=400px}
+](res/cc2541_blink_glitch.png){width=550px}
 
 ![
 The CC2541 pin toggling application with a $90\si{\nano\second}$ crowbar glitch at trigger _T_, causing a reset, visible in the pattern in trace 1 and the initial $1\si{\milli\second}$ pin toggle in trace 3, at the start of the application.
 Trace 1 (yellow): `DCOUPL`, trace 2 (light blue): `RESET_N`, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
 \label{img_cc2541_blink_reset}
-](res/cc2541_blink_reset.png){width=400px}
+](res/cc2541_blink_reset.png){width=550px}
 
 ## Finding a suitable glitch offset\label{section_cc2541_suitable_offset}
 
@@ -466,7 +470,9 @@ The voltage traces should be analysed during the most likely areas in which a CR
 Using `cc-tool` to read basic info about the CC2541: what its debug status is and its name and flags.
 Trace 1 (yellow): `DCOUPL`, trace 2 (light blue): `RESET_N`, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
 \label{img_cc2541_debugging}
-](res/cc2541_basic_info_debug.png){width=400px}
+](res/cc2541_basic_info_debug.png){width=550px}
+
+\newpage
 
 In figure \ref{img_cc2541_debugging}, it can be seen that before and after every debugging command is sent to the CC2541 by the CC Debugger, `RESET_N` is held low while two falling edge transitions are forced on Debug Clock.
 It can be assumed that after every reset out of debug mode, the CC2541 MCU reinitialises and CRP data is moved from flash again, if it is read by the CPU at all.
@@ -493,7 +499,7 @@ Before carrying out differential power analysis (DPA), glitch attempts were made
 Glitch attempts were made using GIAnT interface scripts on both the reset caused by debugging command execution @rudmanCC2541CommandTriggeredGlitch2022 and cold boot @rudmanCC2541ColdBoot2022.
 Both scripts cycled, for every glitch offset, through glitch widths of $50\si{\nano\second}$ to $80\si{\nano\second}$ at $10\si{\nano\second}$ intervals, based on the findings presented in section \ref{section_cc2541_suitable_width} and repeated each glitch width 2 times.
 
-Debugging command-triggered glitches were triggered by falling edge transitions on `RESET_N`, connected to GPIO1_6 on the GIAnT board.
+Debugging command-triggered glitches were triggered by falling edge transitions on `RESET_N`, connected to `GPIO1_6` on the GIAnT board.
 The actual crowbar glitches were applied at offsets ranging from $1\si{\micro\second}$ to $8.1\si{\milli\second}$ at intervals of $0.5\si{\micro\second}$ after the trigger (reset being pulled low), in order to attempt glitches during both reset and debug command handling.
 Cold boot-triggered glitches were triggered by enabling the DAC on the GIAnT board, supplying `VDD` on the CC2541, and glitches were applied at offsets ranging from $100\si{\micro\second}$ to $700\si{\micro\second}$ at intervals of $0.5\si{\micro\second}$ after the trigger (CC2541 receiving power).
 Glitching on a cold boot---not during the reset and subsequent debug communication---was never likely to produce a CRP bypass, as described in section \ref{section_cc2541_suitable_offset}, but was carried out as a fallback after glitching during debug communication didn't produce a CRP bypass.
@@ -533,7 +539,9 @@ The CC2541 glitch during debug communication which was initially thought to be s
 Notice how trace 3 doesn't start toggling again because the application has been wiped.
 Trace 1 (yellow): `DCOUPL`, trace 2 (light blue): `RESET_N`, trace 3 (purple): STATE on the development board (the pin being toggled), trace 4 (dark blue): Debug Data.
 \label{img_cc2541_glitch_success}
-](res/cc2541_glitch_success.png){width=500px}
+](res/cc2541_glitch_success.png){width=550px}
+
+\newpage
 
 ## Differential power analysis\label{section_cc2541_dpa}
 
@@ -570,14 +578,22 @@ Following on from that, recording more of both cold boot and debug communication
 
 \begin{figure}
   \begin{center}
-      \input{res/reset_comparison.pgf}
+    \begin{scalept8}
+      \begin{adjustbox}{clip,trim=0cm 0cm 0cm 1cm,min width=\textwidth}
+        \input{res/reset_comparison.pgf}
+      \end{adjustbox}
+    \end{scalept8}
   \end{center}
   \caption{DPA traces of CC2541 during and after reset. Blue trace (top): a single example of CRP disabled, orange trace (middle): a single example of CRP enabled, green trace (bottom): difference between the averages of CRP disabled and enabled traces, multiplied by 15.\label{img_cc2541_reset_comparison}}
 \end{figure}
 
 \begin{figure}
   \begin{center}
-      \input{res/coldboot_comparison.pgf}
+    \begin{scalept8}
+      \begin{adjustbox}{clip,trim=0cm 0cm 0cm 1cm,min width=\textwidth}
+        \input{res/coldboot_comparison.pgf}
+      \end{adjustbox}
+    \end{scalept8}
   \end{center}
   \caption{DPA traces of CC2541 after power on. Blue trace (top): a single example of CRP disabled, orange trace (middle): a single example of CRP enabled, green trace (bottom): difference between the averages of CRP disabled and enabled traces, multiplied by 15.\label{img_cc2541_coldboot_comparison}}
 \end{figure}
@@ -709,8 +725,6 @@ Microcontrollers more likely to be vulnerable to this kind of attack include tho
 \vspace{0.5cm}
 
 <div id="refs"></div>
-<!-- \bibliographystyle{IEEEtranN} -->
-<!-- \printbibliography -->
 
 \appendix
 
