@@ -27,26 +27,44 @@ header-includes: >
       breakautoindent=true,
       linewidth=\textwidth
   }
-  \usepackage{multicol}
+  \usepackage{varwidth}
 ---
 
+\newenvironment{texto}{%
+  \begin{center} % so the minipage is centered
+  \begin{varwidth}[t]{\textwidth}
+  \raggedright % so the minipage's text is left justified
+}{%
+  \end{varwidth}
+  \end{center}
+}
+
 \vspace{0.3cm}
-\begin{flushleft}
+\begin{texto}
   \textsc{Student ID:} 1907314\\
   \textsc{Supervisor:} Prof. David Oswald\\
   \textsc{Programme:} 610C - BSc Com Sc w DTP FT DA (PwC)\\
-  \textsc{Word Count:} 0
-\end{flushleft}
-\vspace{0.4cm}
+  \textsc{Word Count:} 9293
+\end{texto}
+\vspace{0.8cm}
+
+<!--TODO: Update word count -->
 
 \begin{abstract}
-  This is an abstract.
-  Spoil the ending; say how you haven't managed to glitch the CC2541 with a crowbar glitch on the CPU. TODO.
+  Embedded systems utilising microcontrollers are ubiquitous and even connected to the Internet, in everything from watches to washing machines.
+  Manufacturers of devices containing microcontrollers typically enable some form of code readout protection to protect their intellectual property, hiding their firmware and disabling a level of debugging access within these microcontrollers.
+  Voltage glitching is often a successful fault injection method used to bypass this readout protection and allow an adversary, security researcher or consumer to extract the firmware from the microcontroller's internal memory.
+
+  This report explores how "crowbar" voltage glitches---momentarily shorting the CPU core of a microcontroller to ground---can be used to this effect on members of two families of microcontrollers: Nordic Semiconductor's nRF52 series and Texas Instruments' CC253x/4x series.
+  A successful glitch attempt is replicated on the nRF52832, faulting the CRP data and allowing the extraction of firmware.
+  Unsuccessful glitch attempts are made on the CC2541---for which there are no crowbar glitches leading to a CRP bypass published at the time of writing---with a repeatable outcome of full flash memory erasure documented.
+  A consistent methodology for both glitching attempts is outlined, starting with identifying a suitable glitch width and moving on to describe identifying potential critical sections in power traces.
+  Two different glitch generators are used: the Pico Debug'n'Dump and an FPGA-based board using GIAnT, the Generic Implementation Analysis Toolkit.
+  Finally, improvements to the ease of use of voltage glitching hardware are proposed; these intend to apply some direction to the problem of making voltage glitching kits more consumer-friendly, increasing the ease with which defunct consumer devices may be repurposed.
 \end{abstract}
 
+\newpage
 \tableofcontents
-
-<!-- TODO: Move some of the caption text out to paragraphs and reference the figures with it. -->
 
 # Introduction
 
@@ -71,6 +89,7 @@ A crowbar voltage glitch involves momentarily shorting the CPU voltage to ground
 In order to learn more about voltage glitching, the first chip for which a crowbar glitch to bypass CRP will be attempted is the nRF52832, due to the existence of documentation relating to executing this type of glitch.
 The second experiment will be to apply the same techniques learned during work on the nRF52832 to the CC2541, to see whether there is a similar vulnerability present on a microcontroller with a different CPU core from a different manufacturer.
 Any methods which bypass CRP are assumed to also be applicable to the rest of the microcontroller family of each target: nRF52 and CC253x/4x.
+This report also outlines ways in which voltage glitching techniques could be made more accessible to the consumer who is trying to repurpose defunct hardware with CRP enabled.
 
 ## Related work
 
@@ -93,7 +112,7 @@ Reading both of these works also helped in understanding what often makes a volt
 
 ## Success criteria
 
-The success criteria have changed since the project proposal, but settled on the following: 
+The success criteria, or aims of this project, have changed since the project proposal, but settled on the following: 
 
 - Replicate the crowbar attack Roth carried out on an nRF52832 on a development board @rothHowAppleAirTags2021.
 - Add to the knowledge of which chips are vulnerable to crowbar voltage glitch attacks.
@@ -387,7 +406,7 @@ The command `cc-tool -l debug` enables the debug lock bit, enforcing CRP by disa
 A crowbar glitch on DCOUPL which causes a bypass of CRP is considered a successful glitch.
 In the glitch helper applications [@rudmanCC2541CommandTriggeredGlitch; @rudmanCC2541ColdBoot], which control the GIAnT board, CRP is considered to be disabled if, and only if, the output from the console command `cc-tool -f -r dump.bin --log` contains "Reading flash".
 Otherwise CRP is assumed to still be enabled.
-The flag `--log` is useful for printing more detailed log messages if there is any unusual response, such as an exception or the text "Target is locked" is not in the output.
+The flag `--log` is useful for printing more detailed log messages if there is any unusual response (an example log for CRP enabled is listed in appendix \ref{appendix_crp_enabled} and a log for CRP disabled is listed in appendix \ref{appendix_crp_disabled}), such as an exception or the text "Target is locked" is not in the output.
 If `cc-tool -f -r dump.bin --log` succeeds and CRP is disabled then the contents of the flash memory are read into `dump.bin` in the working directory.
 If `dump.bin` is the same as the application written to flash memory before the glitch campaign, the flash memory has been preserved throughout the glitch attempts, and the glitch is considered successful.
 
@@ -627,12 +646,15 @@ For exploration of targets without known voltage glitch vulnerabilities, GIAnT i
 
 ## Suggested improvements to ease of applying crowbar attacks
 
-While the Debug'n'Dump makes the execution of crowbar attacks easier and cheaper for a user who might wish to re-purpose or reverse-engineer consumer hardware, below are suggestions for increasing that ease of use.
+While the Debug'n'Dump makes the execution of crowbar attacks easier and cheaper for a user who might wish to repurpose or reverse-engineer consumer hardware, below are suggestions for increasing that ease of use.
 
 - Production-ready, pre-built voltage glitch generators: while soldering is still often needed to attach wires to the target device, soldering a voltage glitch generator kit is time-consuming. If the Debug'n'Dump were available pre-built, this would lower the barrier to entry.
 - Reduction of the need to debug each device: there are many components involved in voltage glitch campaigns, such as the debugging adapter, glitch generator, target and all the software needed to interface with them. There are multiple factors that assure a user that they won't need to spend long debugging any of those components.
   - Comprehensive user guides: so far, most resources surrounding voltage glitching are demonstrative, rather than how-to guides. Producing guides on how to use a pre-built glitch generator with various targets would reduce the margin of error for the user.
   - Ready-to-use, purpose-built software: to prevent the need to own an expensive oscilloscope, the software for the glitch generator hardware should be written in a way which ensures that, if the user has followed the guide properly, the software will do the rest (i.e. glitch at conservatively early offsets to prevent the need for manually configuring offsets).
+
+Using these suggestions should make voltage glitching kits more accessible to consumers.
+For security researchers and those who wish to tinker with newer hardware, custom solutions are still relevant and can be used to inform the designs of purpose-built glitching kits.
 
 # Evaluation
 
@@ -686,6 +708,99 @@ Microcontrollers more likely to be vulnerable to this kind of attack include tho
 
 # `cc-tool` logs
 
+## CRP enabled\label{appendix_crp_enabled}
+
+```
+[19.04 13:20:15:73697] main, cc-tool 0.26
+[19.04 13:20:15:73697] main, command line: cc-tool -i --log 
+[19.04 13:20:15:73718] usb, open device, VID: 0451h, PID: 16A2h
+[19.04 13:20:15:73718] usb, set configuration 1
+[19.04 13:20:15:73720] usb, claim interface 0
+[19.04 13:20:15:73723] usb, get string descriptor 2, data: CC Debugger
+[19.04 13:20:15:73723] programmer, request device state
+[19.04 13:20:15:73723] usb, control read, request_type: C0h, request: C0h, value: 0000h, index: 0000h, count: 8
+[19.04 13:20:15:73725] usb, control read, data: 40 25 CC 05 44 00 01 00
+[19.04 13:20:15:73725] device, name: CC Debugger, ID: 0100, version: 05CCh, revision: 0044h
+[19.04 13:20:15:73725] programmer, set debug interface speed 0
+[19.04 13:20:15:73726] usb, control write, request_type: 40h, request: CFh, value: 0001h, index: 0000h, count: 0
+[19.04 13:20:15:73727] programmer, connect target
+[19.04 13:20:15:73727] programmer, enter debug mode
+[19.04 13:20:15:73727] usb, control write, request_type: 40h, request: C5h, value: 0000h, index: 0000h, count: 0
+[19.04 13:20:15:73729] usb, control write, request_type: 40h, request: C8h, value: 0001h, index: 0000h, count: 48
+[19.04 13:20:15:73729] usb, control write, data: 43 43 32 35 34 30 20 20 20 20 20 20 20 20 20 20 44 49 44 3A 20 30 31 30 30 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+[19.04 13:20:15:73733] programmer, reset target, debug mode: 1
+[19.04 13:20:15:73734] usb, control write, request_type: 40h, request: C9h, value: 0000h, index: 0001h, count: 0
+[19.04 13:20:15:73745] programmer, read debug status
+[19.04 13:20:15:73745] usb, bulk write, count: 2, data: 1F 34
+[19.04 13:20:15:73746] usb, bulk read, count 1: data: 26
+[19.04 13:20:15:73746] programmer, debug status, 26h
+[19.04 13:20:15:73746] programmer, target is locked
+[19.04 13:20:15:73746] main, start task processing
+[19.04 13:20:15:73746] programmer, check if unit locked
+[19.04 13:20:15:73746] programmer, read debug status
+[19.04 13:20:15:73746] usb, bulk write, count: 2, data: 1F 34
+[19.04 13:20:15:73746] usb, bulk read, count 1: data: 26
+[19.04 13:20:15:73746] programmer, debug status, 26h
+[19.04 13:20:15:73746] main, finish task processing
+[19.04 13:20:15:73746] programmer, reset target, debug mode: 0
+[19.04 13:20:15:73746] usb, control write, request_type: 40h, request: C9h, value: 0000h, index: 0000h, count: 0
+```
+
+## CRP disabled\label{appendix_crp_disabled}
+
+```
+[19.04 13:18:09:47648] main, cc-tool 0.26
+[19.04 13:18:09:47648] main, command line: cc-tool -i --log 
+[19.04 13:18:09:47669] usb, open device, VID: 0451h, PID: 16A2h
+[19.04 13:18:09:47669] usb, set configuration 1
+[19.04 13:18:09:47671] usb, claim interface 0
+[19.04 13:18:09:47674] usb, get string descriptor 2, data: CC Debugger
+[19.04 13:18:09:47674] programmer, request device state
+[19.04 13:18:09:47675] usb, control read, request_type: C0h, request: C0h, value: 0000h, index: 0000h, count: 8
+[19.04 13:18:09:47676] usb, control read, data: 40 25 CC 05 44 00 01 00
+[19.04 13:18:09:47676] device, name: CC Debugger, ID: 0100, version: 05CCh, revision: 0044h
+[19.04 13:18:09:47677] programmer, set debug interface speed 0
+[19.04 13:18:09:47677] usb, control write, request_type: 40h, request: CFh, value: 0001h, index: 0000h, count: 0
+[19.04 13:18:09:47678] programmer, connect target
+[19.04 13:18:09:47678] programmer, enter debug mode
+[19.04 13:18:09:47678] usb, control write, request_type: 40h, request: C5h, value: 0000h, index: 0000h, count: 0
+[19.04 13:18:09:47680] usb, control write, request_type: 40h, request: C8h, value: 0001h, index: 0000h, count: 48
+[19.04 13:18:09:47680] usb, control write, data: 43 43 32 35 34 30 20 20 20 20 20 20 20 20 20 20 44 49 44 3A 20 30 31 30 30 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+[19.04 13:18:09:47685] programmer, reset target, debug mode: 1
+[19.04 13:18:09:47685] usb, control write, request_type: 40h, request: C9h, value: 0000h, index: 0001h, count: 0
+[19.04 13:18:09:47696] programmer, read debug status
+[19.04 13:18:09:47696] usb, bulk write, count: 2, data: 1F 34
+[19.04 13:18:09:47697] usb, bulk read, count 1: data: 22
+[19.04 13:18:09:47697] programmer, debug status, 22h
+[19.04 13:18:09:47697] programmer, write debug config, 22h
+[19.04 13:18:09:47697] usb, bulk write, count: 3, data: 4C 1D 22
+[19.04 13:18:09:47697] programmer, read xdata memory at 6276h, count: 2
+[19.04 13:18:09:47697] usb, bulk write, count: 47, data: 40 55 00 72 56 E5 92 BE 57 75 92 00 74 56 E5 83 76 56 E5 82 BE 57 90 62 76 4E 55 E0 5E 55 A3 4F 55 E0 5E 55 A3 D4 57 90 C2 57 75 92 90 56 74
+[19.04 13:18:09:47700] usb, bulk read, count 2: data: 4C 07
+[19.04 13:18:09:47700] programmer, read xdata memory, data: 4C 07
+[19.04 13:18:09:47701] programmer, read xdata memory at 6249h, count: 1
+[19.04 13:18:09:47701] usb, bulk write, count: 41, data: 40 55 00 72 56 E5 92 BE 57 75 92 00 74 56 E5 83 76 56 E5 82 BE 57 90 62 49 4F 55 E0 5E 55 A3 D4 57 90 C2 57 75 92 90 56 74
+[19.04 13:18:09:47704] usb, bulk read, count 1: data: 22
+[19.04 13:18:09:47704] programmer, read xdata memory, data: 22
+[19.04 13:18:09:47704] programmer, read xdata memory at 624Ah, count: 1
+[19.04 13:18:09:47704] usb, bulk write, count: 41, data: 40 55 00 72 56 E5 92 BE 57 75 92 00 74 56 E5 83 76 56 E5 82 BE 57 90 62 4A 4F 55 E0 5E 55 A3 D4 57 90 C2 57 75 92 90 56 74
+[19.04 13:18:09:47707] usb, bulk read, count 1: data: 8D
+[19.04 13:18:09:47707] programmer, read xdata memory, data: 8D
+[19.04 13:18:09:47707] target, name: CC2540, chip ID: 8Dh, rev. 22h, flash: 256, ram: 8, flags: 07h
+[19.04 13:18:09:47707] main, start task processing
+[19.04 13:18:09:47707] programmer, check if unit locked
+[19.04 13:18:09:47707] programmer, read debug status
+[19.04 13:18:09:47707] usb, bulk write, count: 2, data: 1F 34
+[19.04 13:18:09:47709] usb, bulk read, count 1: data: 22
+[19.04 13:18:09:47709] programmer, debug status, 22h
+[19.04 13:18:09:47709] programmer, read info page
+[19.04 13:18:09:47709] programmer, read xdata memory at 7800h, count: 128
+[THE INFO PAGE IS READ, HEX DUMP REMOVED FROM LOG]
+[19.04 13:18:10:48681] main, finish task processing
+[19.04 13:18:10:48681] programmer, reset target, debug mode: 0
+[19.04 13:18:10:48681] usb, control write, request_type: 40h, request: C9h, value: 0000h, index: 0000h, count: 0
+```
+
 ## Corrupted debug status\label{appendix_corrupted_debug_status}
 
 ```
@@ -715,5 +830,3 @@ Command '['cc-tool', '-i', '--log']' returned non-zero exit status 1.
 [21.02 13:29:34:99695] programmer, debug status, 00h
 [21.02 13:29:34:99695] programmer, halt failed
 ```
-
-<!-- TODO: Add more logs -->

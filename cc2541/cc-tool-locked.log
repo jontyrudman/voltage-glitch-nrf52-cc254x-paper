@@ -1,0 +1,33 @@
+[19.04 13:20:15:73697] main, cc-tool 0.26
+[19.04 13:20:15:73697] main, command line: cc-tool -i --log 
+[19.04 13:20:15:73718] usb, open device, VID: 0451h, PID: 16A2h
+[19.04 13:20:15:73718] usb, set configuration 1
+[19.04 13:20:15:73720] usb, claim interface 0
+[19.04 13:20:15:73723] usb, get string descriptor 2, data: CC Debugger
+[19.04 13:20:15:73723] programmer, request device state
+[19.04 13:20:15:73723] usb, control read, request_type: C0h, request: C0h, value: 0000h, index: 0000h, count: 8
+[19.04 13:20:15:73725] usb, control read, data: 40 25 CC 05 44 00 01 00
+[19.04 13:20:15:73725] device, name: CC Debugger, ID: 0100, version: 05CCh, revision: 0044h
+[19.04 13:20:15:73725] programmer, set debug interface speed 0
+[19.04 13:20:15:73726] usb, control write, request_type: 40h, request: CFh, value: 0001h, index: 0000h, count: 0
+[19.04 13:20:15:73727] programmer, connect target
+[19.04 13:20:15:73727] programmer, enter debug mode
+[19.04 13:20:15:73727] usb, control write, request_type: 40h, request: C5h, value: 0000h, index: 0000h, count: 0
+[19.04 13:20:15:73729] usb, control write, request_type: 40h, request: C8h, value: 0001h, index: 0000h, count: 48
+[19.04 13:20:15:73729] usb, control write, data: 43 43 32 35 34 30 20 20 20 20 20 20 20 20 20 20 44 49 44 3A 20 30 31 30 30 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20 20
+[19.04 13:20:15:73733] programmer, reset target, debug mode: 1
+[19.04 13:20:15:73734] usb, control write, request_type: 40h, request: C9h, value: 0000h, index: 0001h, count: 0
+[19.04 13:20:15:73745] programmer, read debug status
+[19.04 13:20:15:73745] usb, bulk write, count: 2, data: 1F 34
+[19.04 13:20:15:73746] usb, bulk read, count 1: data: 26
+[19.04 13:20:15:73746] programmer, debug status, 26h
+[19.04 13:20:15:73746] programmer, target is locked
+[19.04 13:20:15:73746] main, start task processing
+[19.04 13:20:15:73746] programmer, check if unit locked
+[19.04 13:20:15:73746] programmer, read debug status
+[19.04 13:20:15:73746] usb, bulk write, count: 2, data: 1F 34
+[19.04 13:20:15:73746] usb, bulk read, count 1: data: 26
+[19.04 13:20:15:73746] programmer, debug status, 26h
+[19.04 13:20:15:73746] main, finish task processing
+[19.04 13:20:15:73746] programmer, reset target, debug mode: 0
+[19.04 13:20:15:73746] usb, control write, request_type: 40h, request: C9h, value: 0000h, index: 0000h, count: 0
