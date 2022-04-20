@@ -503,7 +503,7 @@ Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE
 \label{img_cc2541_glitch_success}
 ](res/cc2541_glitch_success.png){width=500px}
 
-## Differential power analysis
+## Differential power analysis\label{section_cc2541_dpa}
 
 According to Kocher et al., differential power analysis (DPA) is a "statistical method for analyzing sets of measurements to identify data-dependent
 correlation", and involves splitting a set of power traces into subsets, then computing the difference of the average of these subsets @kocherIntroductionDifferentialPower2011.
@@ -533,6 +533,7 @@ This is due to a combination of factors, which couldn't be explored and eliminat
 - It is possible there is no difference between CRP disabled and CRP enabled activity.
 
 The next steps would have started with reducing the trace capture period for the reset to purely the debug communication section (starting at about $7ms$ in figure \ref{img_cc2541_reset_comparison}), skipping the flat line where RESET_N is low and allowing for more traces to be recorded in the same amount of time.
+The glitch which causes a flash erase, found in section \ref{section_cc2541_glitch_attempts}, encourages deeper exploration of the debug communication time period of the voltage traces.
 Following on from that, recording more of both cold boot and debug communication traces would help eliminate more of the aforementioned limitations.
 
 \begin{figure}
@@ -548,22 +549,6 @@ Following on from that, recording more of both cold boot and debug communication
   \end{center}
   \caption{DPA traces of CC2541 after power on. Blue trace (top): a single example of CRP disabled, orange trace (middle): a single example of CRP enabled, green trace (bottom): difference between the averages of CRP disabled and enabled traces, multiplied by 15.\label{img_cc2541_coldboot_comparison}}
 \end{figure}
-
-## Observations
-
-Due to the lack of successful CRP bypass with a crowbar glitch, there are a number of questions still unanswered.
-It is clear that there is no boot ROM, containing an embedded bootloader, present on the CC2541, much like the nRF52832.
-This is evident, not only by the lack of mention in the data sheet and user guide, but the lack of any obvious branching in simple power analysis, when comparing between voltage traces of CRP enabled and CRP disabled activity.
-
-However, a crowbar glitch can be successfully applied to the nRF52832, so why is the CC2541 not susceptible to the same kind of attack?
-It is possible that there is no easily target-able memory copy of CRP data---unlike the nRF52832---or that the CPU core has nothing to do with the CRP data, although this is unlikely, considering the fact that CRP data must still be mapped into addressable memory to be enabled or disabled and the debug interface communicates with the CPU core.
-After seeing that some glitch attempts made in section \ref{section_cc2541_glitch_attempts} cause flash to be completely erased, it is also possible that there is some kind of tamper-proofing for unexpected activity around protected memory, which wipes all flash memory.
-
-It would be arrogant to conclude that a crowbar glitch on DCOUPL cannot cause a CRP bypass on the CC2541, but it is very unlikely, considering the number of offsets at which a glitch has been applied.
-There are other types of attacks that can be attempted in search of a CRP bypass vulnerability.
-Crowbar voltage glitches are only one type of voltage glitching, and slight overvolting or undervolting could also be attempted, not just on DCOUPL but VDD too.
-An example of a research could be executed quickly is to check whether Goodspeed's reported RAM vulnerability of CC2430 @goodspeedExtractingKeysSecond is still present on newer chips in the same family, such as the CC2541.
-Another area of research might be the extraction of secrets through power analysis of DCOUPL while the AES encryption and decryption core on the CC2541 is being used.
 
 ## Areas of difficulty
 
@@ -594,23 +579,46 @@ The DS1074Z oscilloscope is slow at transferring points from power traces over U
 
 All of these time-consuming tasks and mistakes were learning experiences and now it is much easier to recognise various patterns in oscilloscope traces, use a much more rigorous methodology and avoid systematic error.
 
-## Future work
+## Observations\label{section_cc2541_observations}
 
-If there were more time for this project, it would have extended to include the following work:
+Due to the lack of successful CRP bypass with a crowbar glitch, there are a number of questions still unanswered.
+It is clear that there is no boot ROM, containing an embedded bootloader, present on the CC2541, much like the nRF52832.
+This is evident, not only by the lack of mention in the data sheet and user guide, but the lack of any obvious branching in simple power analysis, when comparing between voltage traces of CRP enabled and CRP disabled activity.
 
-- Using a faster oscilloscope to collect more traces in order to produce more accurate DPA results on the CC2541.
-- Building on the knowledge gained about how the CC2541 works to attempt to glitch VDD on the CC2541, undervolting or overvolting---not using a crowbar attack---to set the debug lock bit.
-- Checking whether the CC2541 has the same vulnerability where the RAM isn't erased with the flash, as demonstrated by Goodspeed for the CC2430 @goodspeedExtractingKeysSecond.
-- Improving the ease of use of voltage glitching by refactoring GIAnT into a Python package and adding to the currently sparse documentation.
+However, a crowbar glitch can be successfully applied to the nRF52832, so why is the CC2541 not susceptible to the same kind of attack?
+It is possible that there is no easily target-able memory copy of CRP data---unlike the nRF52832---or that the CPU core has nothing to do with the CRP data, although this is unlikely, considering the fact that CRP data must still be mapped into addressable memory to be enabled or disabled and the debug interface communicates with the CPU core.
+After seeing that some glitch attempts made in section \ref{section_cc2541_glitch_attempts} cause flash to be completely erased, it is also possible that there is some kind of tamper-proofing for unexpected activity around protected memory, which wipes all flash memory.
 
-<!-- TODO: More DPA into just the debug command area; didn't have time to because I did much wider DPA and I didn't have the lead of a voltage glitch on debug commands. -->
+It would be arrogant to conclude that a crowbar glitch on DCOUPL cannot cause a CRP bypass on the CC2541, but it is very unlikely, considering the number of offsets at which a glitch has been applied.
+There are other types of attacks that can be attempted in search of a CRP bypass vulnerability.
+Crowbar voltage glitches are only one type of voltage glitching, and slight overvolting or undervolting could also be attempted, not just on DCOUPL but VDD too.
+An example of a research could be executed quickly is to check whether Goodspeed's reported RAM vulnerability of CC2430 @goodspeedExtractingKeysSecond is still present on newer chips in the same family, such as the CC2541.
+Another area of research might be the extraction of secrets through power analysis of DCOUPL while the AES encryption and decryption core on the CC2541 is being used.
 
 # Evaluation
 
 ## Ease of use of voltage glitching hardware
 
-<!-- TODO: Write this section. Costs and experience. -->
-<!-- Mention the PocketGlitcher -->
+When it comes to the accessibility of voltage glitching, two factors need to be considered: ease of use of equipment and cost of equipment.
+This section compares the Pico Debug'n'Dump @rothPicoDebugDump, GIAnT @oswaldGiantrevBGIAnTFault and PocketGlitcher @limitedresultsPocketGlitcher2021, based on those two factors.
+
+The Pico Debug'n'Dump, introduced in section \ref{section_nrf52832_debugndump}, is available as a kit---which must be soldered together by the user---costing \$25.
+After shipping and buying the not-included Raspberry Pi Pico, its effective cost is just under £30, making it the cheapest device of the three.
+It is also very easy to use, due to extensive documentation and simple APIs which are familiar to users who have worked with other Raspberry Pi products.
+
+The FPGA-based board constructed for use with GIAnT software, introduced in \ref{section_nrf52832_giant}, is based on the ZTEX USB-FPGA Module 2.04, which costs €129 before designing and attaching custom circuits for the desired applications.
+This easily makes it more expensive than the other two devices.
+FPGA configuration is also typically more complicated and most people have less experience with it, making setup of the device much more specialised and difficult.
+Its more complex, free-form nature also makes it versatile; a board designed for GIAnT can be configured for a wider variety of applications.
+Using an FPGA rather than a CPU also allows the device to be much more accurate with timing for real-time applications, such as voltage glitching.
+
+The PocketGlitcher consists of a PocketBeagle @BeagleBoardOrgPocket and adapter board, which has already been designed but requires ordering of parts and assembly.
+Together, these components would cost just below £50.
+At the time of writing, I do not have personal experience with this kit, but it is similar to the Pico Debug'n'Dump in hardware and implementation, with fewer pins than a GIAnT board, so can be considered to have similar ease of use and setup as the Pico Debug'n'Dump.
+
+While the Pico Debug'n'Dump and PocketGlitcher do not have such deterministic and fine-grained timing as FPGA-based boards used with GIAnT, this report has shown that they do still work for crowbar voltage glitching, with the Debug'n'Dump being used successfully to bypass the CRP of an nRF52832 within minutes.
+The low cost and ease of use definitely make the Debug'n'Dump the best choice of the three for someone with little experience of voltage glitching and hardware, as long as its target is known to be vulnerable to a CRP bypass with a voltage glitch and the only type of glitch needed is a crowbar glitch (e.g. nRF52).
+For exploration of targets without known voltage glitch vulnerabilities, GIAnT is the better choice due to its ability to generate many different glitches and its timing accuracy.
 
 ## Comparing outcomes to success criteria
 
@@ -627,6 +635,17 @@ In addition, I have learned many new skills throughout:
 Methods for making crowbar attacks and other voltage glitches easier have also been outlined. <!-- TODO: Add in a recap of outcomes and reference the section -->
 
 <!-- TODO: Recap some of Areas of Difficulty and refer to it -->
+
+## Future work
+
+If there were more time for this project, it would have extended to include the following work:
+
+- Using a faster oscilloscope to collect more traces in order to produce more accurate DPA results on the CC2541.
+- Building on the knowledge gained about how the CC2541 works to attempt to glitch VDD on the CC2541, undervolting or overvolting---not using a crowbar attack---to set the debug lock bit.
+- Checking whether the CC2541 has the same vulnerability where the RAM isn't erased with the flash, as demonstrated by Goodspeed for the CC2430 @goodspeedExtractingKeysSecond.
+- Improving the ease of use of voltage glitching by refactoring GIAnT into a Python package and adding to the currently sparse documentation.
+
+Future work also mentioned in sections \ref{section_cc2541_dpa} and \ref{section_cc2541_observations} includes reducing the trace capture period to only capture debug communication, applying different types of voltage glitch to the CC2541, researching whether a particular RAM vulnerability exists on chips as new as the CC2541 @goodspeedExtractingKeysSecond and the extraction of secrets through power analysis of the CC2541.
 
 ## Conclusion
 
