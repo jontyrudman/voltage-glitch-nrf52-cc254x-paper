@@ -4,14 +4,15 @@ author: Jonathan Rudman
 date: >
   \today\endgraf
   University of Birmingham
-geometry: margin=1in
-numbersections: true
 bibliography: references.bib
 csl: ieee.csl
+geometry: margin=1in
+numbersections: true
 header-includes: >
   \linespread{1.2}
   \usepackage{xcolor}
   \usepackage{pgf}
+  \usepackage{listings}
   \lstset{
       basicstyle=\ttfamily,
       numbers=left,
@@ -30,6 +31,9 @@ header-includes: >
   \usepackage{varwidth}
   \usepackage{siunitx}
 ---
+
+  <!-- \usepackage[style=ieee]{biblatex} -->
+  <!-- \addbibresource{references.bib} -->
 
 \newenvironment{texto}{%
   \begin{center} % so the minipage is centered
@@ -100,7 +104,7 @@ Replicating Roth's and LimitedResults' work is the first experiment of this proj
 
 Voltage glitching can also be used in conjunction with binary analysis---a so-called grey-box approach---on embedded bootloaders @vandenherrewegenFillYourBoots2020.
 Although the nRF52832---the target of this report's first voltage glitch experiment---has a CRP check before any bootloader (which, if present, would be stored on flash memory), Van Den Herrewegen et al. outline voltage glitches on three different MCUs, which is useful information for learning about voltage glitching.
-In the aforementioned paper the GIAnT @oswaldGiantrevBGIAnTFault is also used for the attacks.
+In the aforementioned paper the GIAnT @oswaldGiant2016 is also used for the attacks.
 GIAnT is used throughout this report as the primary glitching system for glitching the nRF52832 and CC2541, although the Pico Debug'n'Dump @rothPicoDebugDump was also used against the nRF52832 for comparison.
 
 O'Flynn details the application of crowbar circuits---which are used to short-circuit a component to ground---in voltage glitching methods @oflynnFaultInjectionUsing2016.
@@ -108,7 +112,7 @@ Similar to O'Flynn's usage of the n-channel MOSFET on the ChipWhisperer, both th
 
 The exploratory experiments on the CC2541 outlined later in this report (power analysis, glitching anything to find reasonable parameters, etc.) were inspired by a glitch campaign carried out by GitHub user debug-silicon against the SiLabs C8051F340 @debug-siliconSiLabsC8051F34xCode2021.
 Much like the Texas Instruments CC2541, the SiLabs C8051F340 is also an 8051-based chip.
-Methods outlined by Wouters et al. @woutersSusceptibilityTexasInstruments, although applied to Texas Instruments microcontrollers based around ARM Cortex-M CPUs rather than 8051 CPUs, were also helpful in compiling this report.
+Methods outlined by Wouters et al. @woutersSusceptibilityTexasInstruments2022, although applied to Texas Instruments microcontrollers based around ARM Cortex-M CPUs rather than 8051 CPUs, were also helpful in compiling this report.
 Reading both of these works also helped in understanding what often makes a voltage glitch targeting CRP checks possible---neither the similarities between CPUs or manufacturers, but rather the nature of the CRP check itself (which could be done outside the CPU) or the copying of CRP data.
 
 ## Success criteria
@@ -221,7 +225,7 @@ Returning to the Debug'n'Dump---after succeeding with GIAnT---and removing its r
 
 ## Using GIAnT\label{section_nrf52832_giant}
 
-GIAnT, an implementation analysis toolkit based around an FPGA board @oswaldGiantrevBGIAnTFault, was used as the glitch generator for attacking the nRF52832 after experimenting with the Pico Debug'n'Dump.
+GIAnT, an implementation analysis toolkit based around an FPGA board @oswaldGiant2016, was used as the glitch generator for attacking the nRF52832 after experimenting with the Pico Debug'n'Dump.
 Boards used by GIAnT are custom and cannot currently be found commercially; the one used in this experiment extends the ZTEX USB-FPGA Module 2.04, which costs €129 alone @USBFPGAModule04.
 The GIAnT board used for this experiment didn't originally have a transistor soldered to it (but had the solder pads available) for the purposes of a crowbar circuit, so a MOSFET had to be added to the trace leading to pin `T1`, along with the capability to use it in the FPGA bytestream.
 
@@ -229,7 +233,7 @@ Wiring the nRF52832 to the GIAnT is similar to the Pico Debug'n'Dump configurati
 
 After flashing the firmware to the GIAnT development board, a Python library is used to interact with the board over USB and configure DAC voltage and the glitching parameters: the pin address for triggering the glitch, the glitch offset and the glitch width.
 
-The application @rudmanNRF52832FullGIAnT configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch---that is, a glitch causing the bypass of CRP.
+The application @rudmanNRF52832FullGIAnT2022 configures the GIAnT board to keep shorting the nRF52832's CPU to ground momentarily at an increasing offset and with multiple pulse widths, to increase the likelihood of finding a successful glitch---that is, a glitch causing the bypass of CRP.
 The initial offset is configured to be immediately before the critical section (see "Finding a suitable glitch offset").
 Once there is a glitch success---defined as the firmware read command being allowed by the MCU---the application on the controlling computer stops running, and a dump of the nRF52832's firmware is left in the working directory.
 
@@ -244,12 +248,12 @@ The difference between the smallest and largest glitch width is not large, becau
 
 This step can also be used to diagnose any problems with the glitching setup because in most cases where the CPU voltage is glitched, a fault should occur in the execution of the running application.
 O'Flynn uses a `for` loop containing a counter incrementation, nested in another `for` loop, to show how the counter incrementation is skipped when both loops are complete and the counter is printed @oflynnFaultInjectionUsing2016.
-Due to the added complexity of relying on printing to a buffer---requiring some use of another serial connection in this case---a simple GPIO pin toggling application was used and an oscilloscope was connected to that pin to observe the effect of a glitch @rudmanNRF52832BlinkPin.
+Due to the added complexity of relying on printing to a buffer---requiring some use of another serial connection in this case---a simple GPIO pin toggling application was used and an oscilloscope was connected to that pin to observe the effect of a glitch @rudmanNRF52832BlinkPin2022.
 Normal operation of this application is shown in figure \ref{img_nrf52832_blink_no_glitch}.
 
 ![The pin toggling application functioning normally, with no glitch. Trace 1 (yellow) is the CPU core voltage and trace 2 (blue) is the pin being toggled by the application. Trigger _T_ points to the moment the nRF52832 becomes powered.\label{img_nrf52832_blink_no_glitch}](res/nrf52832_blink_no_glitch.png){width=400px}
 
-After creating a simple script to try a given glitch width over a rough range of offsets @rudmanNRF52832MinimumGlitch, the script was run against the nRF52832 running its pin toggling application.
+After creating a simple script to try a given glitch width over a rough range of offsets @rudmanNRF52832MinimumGlitch2022, the script was run against the nRF52832 running its pin toggling application.
 Manually increasing the value of `width` in the script from $10\si{\nano\second}$---the GIAnT board cannot produce glitches shorter than $10\si{\nano\second}$---showed that the minimum glitch width to successfully fault the CPU execution, at least in the case of application execution, is $50\si{\nano\second}$, as shown in figure \ref{img_nrf52832_blink_glitch}.
 The result of the fault is that the application jumps out of the `while` loop altogether, even at different offsets.
 This could be due to skipping a jump instruction, but it is likely that the fault occurs during the 5ms delay routine---which doesn't just use `NOP`s in the case of the nRF52832---and jumps out of it, especially because the glitch will work at many offsets.
@@ -295,11 +299,12 @@ The offsets for 399 successful glitches were recorded and the proportion of glit
 
 ## Observations\label{section_nrf52832_observations}
 
-A script @rudmanNRF52832FullGIAnT was written to control the GIAnT board using the parameters discussed in sections \ref{section_cc2541_suitable_width} and \ref{section_nrf52832_suitable_offset}.
+A script @rudmanNRF52832FullGIAnT2022 was written to control the GIAnT board using the parameters discussed in sections \ref{section_cc2541_suitable_width} and \ref{section_nrf52832_suitable_offset}.
 The finalised code for this script iterates over an offset range of $1027\mu s - 1100\si{\micro\second}$ at an interval of $1\si{\micro\second}$ and over a width range of $50ns - 200\si{\nano\second}$ at an interval of $10\si{\nano\second}$.
 The reason for the large offset range is that over the course of a few months, the critical section has been at varying offsets; successful glitches months apart have occurred at offsets of $1029\mu s - 1045\si{\micro\second}$, $1057\si{\micro\second}$ during project demonstration week and $1071\si{\micro\second}$ in December.
 
 Using the aforementioned script, a successful glitch was achieved and an example is shown in figure \ref{img_nrf52832_successful}.
+The working script has since been added to a list of examples in the GIAnT revision B repository @oswaldGiantrevBGIAnTFault2021.
 Compare this to figure \ref{img_nrf52832_crit_section_zoom}; notice how the CPU core voltage does not drop after the glitch.
 LimitedResults calls the CRP check a "pure hardware process" due to the absence of boot ROM @limitedresultsNRF52DebugResurrection2020, but the successful glitch seems to also bypass the whole section of slightly dropped voltage before the voltage drops more steeply for application execution.
 There is no mention of boot ROM---where code will be retrieved from and executed by the CPU---in the user guide but the lack of a voltage drop after the successful glitch looks more like a branch, and thus a section of code, has been skipped.
@@ -405,7 +410,7 @@ When setting up the CC2541 for a CRP bypass glitch campaign, the console command
 The command `cc-tool -l debug` enables the debug lock bit, enforcing CRP by disabling most debugging functionality, including reading the flash memory to retrieve the application.
 
 A crowbar glitch on `DCOUPL` which causes a bypass of CRP is considered a successful glitch.
-In the glitch helper applications [@rudmanCC2541CommandTriggeredGlitch; @rudmanCC2541ColdBoot], which control the GIAnT board, CRP is considered to be disabled if, and only if, the output from the console command `cc-tool -f -r dump.bin --log` contains "Reading flash".
+In the glitch helper applications [@rudmanCC2541CommandTriggeredGlitch2022; @rudmanCC2541ColdBoot2022], which control the GIAnT board, CRP is considered to be disabled if, and only if, the output from the console command `cc-tool -f -r dump.bin --log` contains "Reading flash".
 Otherwise CRP is assumed to still be enabled.
 The flag `--log` is useful for printing more detailed log messages if there is any unusual response (an example log for CRP enabled is listed in appendix \ref{appendix_crp_enabled} and a log for CRP disabled is listed in appendix \ref{appendix_crp_disabled}), such as an exception or the text "Target is locked" is not in the output.
 If `cc-tool -f -r dump.bin --log` succeeds and CRP is disabled then the contents of the flash memory are read into `dump.bin` in the working directory.
@@ -414,7 +419,7 @@ If `dump.bin` is the same as the application written to flash memory before the 
 ## Finding a suitable glitch width\label{section_cc2541_suitable_width}
 
 The reasoning behind finding a suitable minimum glitch width is outlined in section \ref{section_nrf52832_suitable_width}.
-Much like the code written for finding the minimum glitch width for the nRF52832, a test application was written to toggle a pin on the CC2541 at $5\si{\milli\second}$ intervals @rudmanCC2541BlinkPin, and a script was created for using the GIAnT board to glitch the CC2541 at an increasing offset @rudmanCC2541MinimumGlitch.
+Much like the code written for finding the minimum glitch width for the nRF52832, a test application was written to toggle a pin on the CC2541 at $5\si{\milli\second}$ intervals @rudmanCC2541BlinkPin2022, and a script was created for using the GIAnT board to glitch the CC2541 at an increasing offset @rudmanCC2541MinimumGlitch2022.
 The pin toggling application is configured to toggle pin 0.2 on the CC2541, which is connected to a header pin on its development board labelled "state".
 The first two pin toggles are only $1\si{\milli\second}$ apart to show more clearly when the application starts.
 Normal operation of the pin toggling application is shown in figure \ref{img_cc2541_blink_no_glitch}.
@@ -475,7 +480,7 @@ $ cc-tool -r out.bin
   No operations allowed on locked target without erasing
 ```
 
-In order to check whether a glitch has been successful at bypassing CRP, a non-error response from `cc-tool` which does not contain "Target is locked" is used as the benchmark in the GIAnT scripts [@rudmanCC2541CommandTriggeredGlitch; @rudmanCC2541ColdBoot].
+In order to check whether a glitch has been successful at bypassing CRP, a non-error response from `cc-tool` which does not contain "Target is locked" is used as the benchmark in the GIAnT scripts [@rudmanCC2541CommandTriggeredGlitch2022; @rudmanCC2541ColdBoot2022].
 Unless the area of memory containing the debug lock bit is permanently changed---something not likely with a crowbar glitch on the CPU---any outcome from a glitch before `cc-tool` is used will be reverted by the reset before each debug command, which includes the check to see whether the glitch has been successful.
 Therefore any glitch on a cold boot is unlikely to bypass CRP in a meaningful way, because checking the debug lock bit will reset the chip and re-enable the CRP.
 
@@ -485,7 +490,7 @@ This is the period of time between trigger _T_ on figure \ref{img_cc2541_debuggi
 ## Glitch attempts\label{section_cc2541_glitch_attempts}
 
 Before carrying out differential power analysis (DPA), glitch attempts were made across the offset space outlined in section \ref{section_cc2541_suitable_offset}, cold boot and during and immediately after a debugging-triggered reset.
-Glitch attempts were made using GIAnT interface scripts on both the reset caused by debugging command execution @rudmanCC2541CommandTriggeredGlitch and cold boot @rudmanCC2541ColdBoot.
+Glitch attempts were made using GIAnT interface scripts on both the reset caused by debugging command execution @rudmanCC2541CommandTriggeredGlitch2022 and cold boot @rudmanCC2541ColdBoot2022.
 Both scripts cycled, for every glitch offset, through glitch widths of $50\si{\nano\second}$ to $80\si{\nano\second}$ at $10\si{\nano\second}$ intervals, based on the findings presented in section \ref{section_cc2541_suitable_width} and repeated each glitch width 2 times.
 
 Debugging command-triggered glitches were triggered by falling edge transitions on `RESET_N`, connected to GPIO1_6 on the GIAnT board.
@@ -625,7 +630,7 @@ Another area of research might be the extraction of secrets through power analys
 # Ease of use of voltage glitching hardware\label{section_ease_of_use}
 
 When it comes to the accessibility of voltage glitching, two factors need to be considered: ease of use of equipment and cost of equipment.
-This section compares the Pico Debug'n'Dump @rothPicoDebugDump, GIAnT @oswaldGiantrevBGIAnTFault and PocketGlitcher @limitedresultsPocketGlitcher2021, based on those two factors.
+This section compares the Pico Debug'n'Dump @rothPicoDebugDump, GIAnT @oswaldGiant2016 and PocketGlitcher @limitedresultsPocketGlitcher2021, based on those two factors.
 
 The Pico Debug'n'Dump, introduced in section \ref{section_nrf52832_debugndump}, is available as a kit---which must be soldered together by the user---costing \$25.
 After shipping and buying the not-included Raspberry Pi Pico, its effective cost is just under £30, making it the cheapest device of the three.
@@ -704,6 +709,8 @@ Microcontrollers more likely to be vulnerable to this kind of attack include tho
 \vspace{0.5cm}
 
 <div id="refs"></div>
+<!-- \bibliographystyle{IEEEtranN} -->
+<!-- \printbibliography -->
 
 \appendix
 
