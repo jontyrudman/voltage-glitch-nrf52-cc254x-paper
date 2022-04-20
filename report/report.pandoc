@@ -455,7 +455,7 @@ Therefore any glitch on a cold boot is unlikely to bypass CRP in a meaningful wa
 The result of this is that the best chance of a successful glitch on CRP is during the time from the reset before the debug command is sent to the CC2541, until the debug command is processed by the CC2541.
 This is the period of time between trigger _T_ on figure \ref{img_cc2541_debugging} and $8ms$ later.
 
-## Glitch attempts
+## Glitch attempts\label{section_cc2541_glitch_attempts}
 
 Before carrying out differential power analysis (DPA), glitch attempts were made across the offset space outlined in section \ref{section_cc2541_suitable_offset}, cold boot and during and immediately after a debugging-triggered reset.
 Glitch attempts were made using GIAnT interface scripts on both the reset caused by debugging command execution @rudmanCC2541CommandTriggeredGlitch and cold boot @rudmanCC2541ColdBoot.
@@ -505,15 +505,65 @@ Trace 1 (yellow): DCOUPL, trace 2 (light blue): RESET_N, trace 3 (purple): STATE
 
 ## Differential power analysis
 
-<!-- TODO: Define DPA -->
-<!-- TODO: Add a section on interfacing with the oscilloscope -->
-<!-- TODO: Show results of DPA, why they don't really help -->
-<!-- TODO: Maybe don't even do this section, or just do a best efforts thing -->
+According to Kocher et al., differential power analysis (DPA) is a "statistical method for analyzing sets of measurements to identify data-dependent
+correlation", and involves splitting a set of power traces into subsets, then computing the difference of the average of these subsets @kocherIntroductionDifferentialPower2011.
+In this case, the initial set of power traces is a set of power traces for a given time period of the CC2541's power consumption, and there are two subsets: traces where CRP is disabled and traces where CRP is enabled.
+After applying glitches throughout offsets covering all of the potential critical sections as described in section \ref{section_cc2541_glitch_attempts}, DPA was applied in an effort to reduce the search space, thus focussing glitch attempts on a more likely critical section.
+Looking for differences between the averages of these two sets could help identify a critical section for a crowbar glitch; a pattern being different in one subset when compared to the other could indicate a glitch-able branch related to CRP checking or handling of CRP data.
+
+### Interfacing with the DS1074Z oscilloscope
+
+In order to record accurate power traces and average them, it was necessary to record the points on the trace directly from the oscilloscope, the Rigol DS1074Z Plus, to the general purpose computer for data processing.
+After experiencing issues with a variety of Python USB interfaces for Rigol oscilloscopes, success at transferring traces over USB was found in the PyVisa interface class at the website _Rocking Wombat_ @riesterDS1074ZUndPyVisa, which has also been adapted for the purposes of this project @riesterDS1074ZInterfaceClass.
+
+For a single trace of 3 million points to transfer over USB took around 18 minutes.
+3 million points were needed for the time period captured for analysis, because the sample rate needed to be $250MSa/s$ to capture the details of a CPU running at $32MHz$.
+DPA requires, ideally, thousands of traces for each subset being compared, in order to average the constituent traces without removing important features from the average trace, especially when there is jitter between each trace.
+A thousand traces would therefore take 300 hours to capture, which makes accurate DPA prohibitively time-expensive for this particular oscilloscope.
+
+### Results
+
+The results of the DPA were inconclusive; due to time constraints only 149 traces were recorded for during and after reset, and 1,246 for cold boot (both counts include CRP disabled and enabled).
+Graphs displaying the difference between CRP disabled and enabled are shown for during reset and after---when processing debug commands---in figure \ref{img_cc2541_reset_comparison} and during power on in figure \ref{img_cc2541_coldboot_comparison}.
+The desired outcome of DPA is for there to be one or a few prominent peaks, but there are many similarly-sized peaks in most places on both graphs.
+This is due to a combination of factors, which couldn't be explored and eliminated due to time constraints:
+
+- Time period of the trace recording: while the cold boot recordings were shorter than the reset recordings (accounting for the increased number of traces) because they focussed on a section of initialisation activity about $0.8ms$ long, it is still a long period of time and clock cycles aren't clearly visible on the graph yet.
+- Too few recordings: for cold boot and reset recordings, less than 1000 traces were recorded for each CRP setting. Peaks on the difference trace for cold boot are more prominent than for reset, and even then, it indicates very little.
+- It is possible there is no difference between CRP disabled and CRP enabled activity.
+
+The next steps would have started with reducing the trace capture period for the reset to purely the debug communication section (starting at about $7ms$ in figure \ref{img_cc2541_reset_comparison}), skipping the flat line where RESET_N is low and allowing for more traces to be recorded in the same amount of time.
+Following on from that, recording more of both cold boot and debug communication traces would help eliminate more of the aforementioned limitations.
+
+\begin{figure}
+  \begin{center}
+      \input{res/reset_comparison.pgf}
+  \end{center}
+  \caption{DPA traces of CC2541 during and after reset. Blue trace (top): a single example of CRP disabled, orange trace (middle): a single example of CRP enabled, green trace (bottom): difference between the averages of CRP disabled and enabled traces, multiplied by 15.\label{img_cc2541_reset_comparison}}
+\end{figure}
+
+\begin{figure}
+  \begin{center}
+      \input{res/coldboot_comparison.pgf}
+  \end{center}
+  \caption{DPA traces of CC2541 after power on. Blue trace (top): a single example of CRP disabled, orange trace (middle): a single example of CRP enabled, green trace (bottom): difference between the averages of CRP disabled and enabled traces, multiplied by 15.\label{img_cc2541_coldboot_comparison}}
+\end{figure}
 
 ## Observations
 
-<!-- TODO: Doesn't have an embedded bootloader, but neither does the nRF52832, so why does this mean the crowbar glitch isn't possible? -->
-<!-- TODO: Maybe one reason for the more featureless traces is because DCOUPL is for the whole MCU and not the CPU? -->
+Due to the lack of successful CRP bypass with a crowbar glitch, there are a number of questions still unanswered.
+It is clear that there is no boot ROM, containing an embedded bootloader, present on the CC2541, much like the nRF52832.
+This is evident, not only by the lack of mention in the data sheet and user guide, but the lack of any obvious branching in simple power analysis, when comparing between voltage traces of CRP enabled and CRP disabled activity.
+
+However, a crowbar glitch can be successfully applied to the nRF52832, so why is the CC2541 not susceptible to the same kind of attack?
+It is possible that there is no easily target-able memory copy of CRP data---unlike the nRF52832---or that the CPU core has nothing to do with the CRP data, although this is unlikely, considering the fact that CRP data must still be mapped into addressable memory to be enabled or disabled and the debug interface communicates with the CPU core.
+After seeing that some glitch attempts made in section \ref{section_cc2541_glitch_attempts} cause flash to be completely erased, it is also possible that there is some kind of tamper-proofing for unexpected activity around protected memory, which wipes all flash memory.
+
+It would be arrogant to conclude that a crowbar glitch on DCOUPL cannot cause a CRP bypass on the CC2541, but it is very unlikely, considering the number of offsets at which a glitch has been applied.
+There are other types of attacks that can be attempted in search of a CRP bypass vulnerability.
+Crowbar voltage glitches are only one type of voltage glitching, and slight overvolting or undervolting could also be attempted, not just on DCOUPL but VDD too.
+An example of a research could be executed quickly is to check whether Goodspeed's reported RAM vulnerability of CC2430 @goodspeedExtractingKeysSecond is still present on newer chips in the same family, such as the CC2541.
+Another area of research might be the extraction of secrets through power analysis of DCOUPL while the AES encryption and decryption core on the CC2541 is being used.
 
 ## Areas of difficulty
 
@@ -553,11 +603,14 @@ If there were more time for this project, it would have extended to include the 
 - Checking whether the CC2541 has the same vulnerability where the RAM isn't erased with the flash, as demonstrated by Goodspeed for the CC2430 @goodspeedExtractingKeysSecond.
 - Improving the ease of use of voltage glitching by refactoring GIAnT into a Python package and adding to the currently sparse documentation.
 
+<!-- TODO: More DPA into just the debug command area; didn't have time to because I did much wider DPA and I didn't have the lead of a voltage glitch on debug commands. -->
+
 # Evaluation
 
 ## Ease of use of voltage glitching hardware
 
 <!-- TODO: Write this section. Costs and experience. -->
+<!-- Mention the PocketGlitcher -->
 
 ## Comparing outcomes to success criteria
 
