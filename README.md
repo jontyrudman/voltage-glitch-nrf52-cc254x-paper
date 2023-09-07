@@ -1,4 +1,4 @@
-# Jonathan Rudman (jxr814)
+# Jonathan Rudman
 
 Welcome to my project repo.
 
