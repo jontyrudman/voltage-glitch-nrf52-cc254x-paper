@@ -6,3 +6,9 @@ FYP\ Discussion.md
 __pycache__
 general/record_and_dpa/cc-tool.log
 _build
+*.aux
+*.bbl
+*.bcf
+*.blg
+*.log
+*.toc
